@@ -1,135 +1,167 @@
 import streamlit as st
 import pandas as pd
-import fitz  # PyMuPDF
+import fitz
 import io
+import base64
 
 st.set_page_config(page_title="QA Spec Prototype", layout="wide")
 
 st.title("QA Specification Extraction Prototype")
-st.caption("Mock AI version: upload PDF, review extracted fields, export Excel.")
+st.caption("v0.2 — clickable values with PDF source highlighting")
 
 uploaded_file = st.file_uploader("Upload a PDF specification", type=["pdf"])
 
-def confidence_style(confidence):
+
+def confidence_colour(confidence):
     if confidence == "High":
-        return "color: black;"
+        return "black"
     if confidence == "Medium":
-        return "color: #b8860b; font-weight: bold;"
+        return "#b8860b"
     if confidence == "Low":
-        return "color: red; font-weight: bold;"
-    return "color: black;"
+        return "red"
+    return "black"
+
 
 def extract_pdf_text(pdf_bytes):
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     pages = []
     for i, page in enumerate(doc):
-        pages.append({
-            "page": i + 1,
-            "text": page.get_text()
-        })
+        pages.append({"page": i + 1, "text": page.get_text()})
     return pages
 
-def mock_extract(filename, pages):
-    joined_text = "\n".join(p["text"] for p in pages)
 
-    if "pineapple" in joined_text.lower() or "ananas" in joined_text.lower():
+def mock_extract(pages):
+    joined = "\n".join(p["text"] for p in pages).lower()
+
+    if "ground cumin" in joined:
         return [
-            ["Product_Name", "Pineapple Paste", "High", 1, "Name: ANANAS PINEAPPLE"],
-            ["Product_Description", "Semifinished product in paste for gelato production. Not intended for direct consumption. Made in Italy.", "High", 1, "Semifinished product in paste for Gelato production... Made in Italy."],
-            ["Ingredients_Full_Text", "Glucose syrup, Saccharose syrup, Citric acid, Vegetable fibre (Inulin), Flavours, Pectin, E100, E160b", "High", 1, "Composition: Glucose syrup, Saccharose syrup, Citric acid..."],
-            ["Allergens_Present", "None declared", "High", 1, "MAY CONTAIN TRACES OF SHELLED NUTS, SOY, MILK"],
-            ["Allergens_May_Contain", "Tree Nuts, Soy, Milk", "High", 1, "MAY CONTAIN TRACES OF SHELLED NUTS, SOY, MILK"],
-            ["Energy_kcal_100g", "277.36", "High", 1, "ENERGIA 277,36 Kcal"],
-            ["Energy_kJ_100g", "1160.11", "High", 1, "1160,11 Kj"],
-            ["Protein_g_100g", "0.76", "High", 1, "PROTEINS 0,76 g"],
-            ["Carbohydrates_g_100g", "67.79", "High", 1, "CARBOHYDRATES 67,79 g"],
-            ["Sugars_g_100g", "67.51", "High", 1, "sugars 67,51 g"],
-            ["Fat_g_100g", "0.39", "High", 1, "FATS 0,39 g"],
-            ["Saturates_g_100g", "0.04", "High", 1, "saturated 0,04 g"],
-            ["Fibre_g_100g", "0.38", "High", 1, "FIBER 0,38 g"],
-            ["Salt_g_100g", "0", "High", 1, "SALT 0 g"],
-            ["Origin_Summary", "Italy", "High", 1, "Made in Italy"],
-            ["Vegan", "Suitable", "Medium", 1, "Ingredients appear vegan; flavours create minor uncertainty"],
-            ["Vegetarian", "Suitable", "High", 1, "Ingredients appear vegetarian"],
-            ["Coeliac", "Suitable", "High", 1, "No gluten-containing ingredients or gluten may-contain warning identified"],
-            ["Lactose_Free", "Review Required", "Medium", 1, "May contain traces of milk"],
-            ["Halal", "No", "High", 1, "No halal statement found"],
-            ["Kosher", "No", "High", 1, "No kosher statement found"],
-            ["Organic", "No", "High", 1, "No organic claim found"],
-            ["Palm_Oil_Free", "Review Required", "Medium", 1, "Flavours may require confirmation"],
-            ["GMO_Free", "Yes", "High", 1, "It doesn't contain OGM ingredients"],
-            ["Review_Required", "Yes", "Medium", 1, "Lactose free and palm oil free require QA review"]
+            {"Field": "Product_Name", "Value": "GROUND CUMIN", "Confidence": "High", "Page": 1, "Search": "Product Name GROUND CUMIN"},
+            {"Field": "Product_Description", "Value": "Ground to a medium fine powder", "Confidence": "High", "Page": 1, "Search": "Ground to a medium fine powder"},
+            {"Field": "Ingredients_Full_Text", "Value": "Cumin", "Confidence": "High", "Page": 1, "Search": "Ingredients declaration Cumin"},
+            {"Field": "Allergens_Present", "Value": "None", "Confidence": "High", "Page": 4, "Search": "Allergens in product None"},
+            {"Field": "Allergens_May_Contain", "Value": "Peanuts (supply chain possible airborne cross-contamination)", "Confidence": "Medium", "Page": 4, "Search": "Possible airborne cross contamination"},
+            {"Field": "Energy_kcal_100g", "Value": "427", "Confidence": "High", "Page": 3, "Search": "kcal 427"},
+            {"Field": "Energy_kJ_100g", "Value": "1783", "Confidence": "High", "Page": 3, "Search": "kj 1783"},
+            {"Field": "Protein_g_100g", "Value": "17.8", "Confidence": "High", "Page": 3, "Search": "Protein (g) 17.8"},
+            {"Field": "Carbohydrates_g_100g", "Value": "33.7", "Confidence": "High", "Page": 3, "Search": "Carbohydrate (g) 33.7"},
+            {"Field": "Sugars_g_100g", "Value": "2.3", "Confidence": "High", "Page": 3, "Search": "Sugar (g) 2.3"},
+            {"Field": "Fat_g_100g", "Value": "22.3", "Confidence": "High", "Page": 3, "Search": "Fat (g) 22.3"},
+            {"Field": "Saturates_g_100g", "Value": "1.5", "Confidence": "High", "Page": 3, "Search": "Saturates (g) 1.5"},
+            {"Field": "Salt_g_100g", "Value": "0.42", "Confidence": "High", "Page": 3, "Search": "Salt (g) 0.42"},
+            {"Field": "Origin_Summary", "Value": "India – processed in UK", "Confidence": "High", "Page": 1, "Search": "Origin India"},
+            {"Field": "Halal", "Value": "Suitable (not certified)", "Confidence": "High", "Page": 3, "Search": "Not Certified"},
+            {"Field": "Kosher", "Value": "Suitable (not certified)", "Confidence": "High", "Page": 3, "Search": "Not Certified"},
+            {"Field": "GMO_Free", "Value": "Yes", "Confidence": "High", "Page": 5, "Search": "genetically modified varieties are known"},
         ]
 
-    if "ground cumin" in joined_text.lower():
+    if "ananas" in joined or "pineapple" in joined:
         return [
-            ["Product_Name", "GROUND CUMIN", "High", 1, "Product Name GROUND CUMIN"],
-            ["Product_Description", "Ground to a medium fine powder", "High", 1, "Description of the product Ground to a medium fine powder"],
-            ["Ingredients_Full_Text", "Cumin", "High", 1, "Ingredients declaration Cumin."],
-            ["Allergens_Present", "None", "High", 4, "Allergens in product None"],
-            ["Allergens_May_Contain", "Peanuts (supply chain possible airborne cross-contamination)", "Medium", 4, "Peanuts... Yes (Supplier handle on site, Possible airborne cross contamination...)"],
-            ["Energy_kcal_100g", "427", "High", 3, "Nutrition information per 100g kcal 427"],
-            ["Energy_kJ_100g", "1783", "High", 3, "kj 1783"],
-            ["Protein_g_100g", "17.8", "High", 3, "Protein (g) 17.8"],
-            ["Carbohydrates_g_100g", "33.7", "High", 3, "Carbohydrate (g) 33.7"],
-            ["Sugars_g_100g", "2.3", "High", 3, "Sugar (g) 2.3"],
-            ["Fat_g_100g", "22.3", "High", 3, "Fat (g) 22.3"],
-            ["Saturates_g_100g", "1.5", "High", 3, "Saturates (g) 1.5"],
-            ["Fibre_g_100g", "Not stated", "High", 3, "Nutrition table does not state fibre"],
-            ["Salt_g_100g", "0.42", "High", 3, "Salt (g) 0.42"],
-            ["Origin_Summary", "India – processed in UK", "High", 1, "Origin India – Processed in UK."],
-            ["Vegan", "Suitable", "High", 3, "Product suitability Vegans YES"],
-            ["Vegetarian", "Suitable", "High", 3, "Product suitability Vegetarians YES"],
-            ["Coeliac", "Suitable (claimed)", "High", 3, "Product suitability Coeliacs YES"],
-            ["Lactose_Free", "Suitable", "Medium", 4, "Milk not present in product; supplier handles milk on site"],
-            ["Halal", "Suitable (not certified)", "High", 3, "Halal YES Not Certified"],
-            ["Kosher", "Suitable (not certified)", "High", 3, "Kosher YES Not Certified"],
-            ["Organic", "No", "High", 5, "No organic claim found"],
-            ["Palm_Oil_Free", "Yes", "High", 1, "Ingredients declaration Cumin."],
-            ["GMO_Free", "Yes", "High", 5, "Neither the product itself nor any component is produced from GM raw materials"],
-            ["Review_Required", "Yes", "Medium", 4, "Customer to risk assess allergen warning from table"]
+            {"Field": "Product_Name", "Value": "Pineapple Paste", "Confidence": "High", "Page": 1, "Search": "ANANAS PINEAPPLE"},
+            {"Field": "Product_Description", "Value": "Semifinished product in paste for gelato production. Not intended for direct consumption. Made in Italy.", "Confidence": "High", "Page": 1, "Search": "Semifinished product in paste for Gelato production"},
+            {"Field": "Ingredients_Full_Text", "Value": "Glucose syrup, Saccharose syrup, Citric acid, Vegetable fibre (Inulin), Flavours, Pectin, E100, E160b", "Confidence": "High", "Page": 1, "Search": "GLUCOSE SYRUP"},
+            {"Field": "Allergens_Present", "Value": "None declared", "Confidence": "High", "Page": 1, "Search": "MAY CONTAIN TRACES"},
+            {"Field": "Allergens_May_Contain", "Value": "Tree Nuts, Soy, Milk", "Confidence": "High", "Page": 1, "Search": "MAY CONTAIN TRACES OF SHELLED NUTS, SOY, MILK"},
+            {"Field": "Energy_kcal_100g", "Value": "277.36", "Confidence": "High", "Page": 1, "Search": "277,36 Kcal"},
+            {"Field": "Energy_kJ_100g", "Value": "1160.11", "Confidence": "High", "Page": 1, "Search": "1160,11 Kj"},
+            {"Field": "Protein_g_100g", "Value": "0.76", "Confidence": "High", "Page": 1, "Search": "PROTEINS 0,76"},
+            {"Field": "Carbohydrates_g_100g", "Value": "67.79", "Confidence": "High", "Page": 1, "Search": "CARBOHYDRATES 67,79"},
+            {"Field": "Sugars_g_100g", "Value": "67.51", "Confidence": "High", "Page": 1, "Search": "sugars 67,51"},
+            {"Field": "Fat_g_100g", "Value": "0.39", "Confidence": "High", "Page": 1, "Search": "FATS 0,39"},
+            {"Field": "Saturates_g_100g", "Value": "0.04", "Confidence": "High", "Page": 1, "Search": "saturated 0,04"},
+            {"Field": "Fibre_g_100g", "Value": "0.38", "Confidence": "High", "Page": 1, "Search": "FIBER 0,38"},
+            {"Field": "Salt_g_100g", "Value": "0", "Confidence": "High", "Page": 1, "Search": "SALT 0 g"},
+            {"Field": "Origin_Summary", "Value": "Italy", "Confidence": "High", "Page": 1, "Search": "Made in Italy"},
+            {"Field": "Lactose_Free", "Value": "Review Required", "Confidence": "Medium", "Page": 1, "Search": "MILK"},
+            {"Field": "Palm_Oil_Free", "Value": "Review Required", "Confidence": "Medium", "Page": 1, "Search": "FLAVOURS"},
+            {"Field": "GMO_Free", "Value": "Yes", "Confidence": "High", "Page": 1, "Search": "It doesn't contain OGM ingredients"},
         ]
 
     return [
-        ["Product_Name", "Not extracted", "Low", 1, "Mock AI does not recognise this sample yet"],
-        ["Review_Required", "Yes", "Low", 1, "Unknown document format in mock mode"]
+        {"Field": "Product_Name", "Value": "Not extracted", "Confidence": "Low", "Page": 1, "Search": ""}
     ]
+
+
+def render_highlighted_page(pdf_bytes, page_number, search_text):
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    page = doc[page_number - 1]
+
+    rects = []
+    if search_text:
+        rects = page.search_for(search_text)
+
+    if not rects and search_text:
+        words = search_text.split()
+        for word in words[:5]:
+            found = page.search_for(word)
+            if found:
+                rects.extend(found[:2])
+
+    for rect in rects:
+        highlight = page.add_highlight_annot(rect)
+        highlight.update()
+
+    pix = page.get_pixmap(matrix=fitz.Matrix(1.6, 1.6), alpha=False)
+    return pix.tobytes("png"), len(rects)
+
 
 if uploaded_file:
     pdf_bytes = uploaded_file.read()
     pages = extract_pdf_text(pdf_bytes)
-    results = mock_extract(uploaded_file.name, pages)
+    rows = mock_extract(pages)
 
-    df = pd.DataFrame(results, columns=["Field", "Value", "Confidence", "Source_Page", "Source_Quote"])
+    if "selected_row" not in st.session_state:
+        st.session_state["selected_row"] = rows[0]
 
-    left, right = st.columns([1.1, 1])
+    left, right = st.columns([1.25, 1])
 
     with left:
-        st.subheader("Extracted Output")
+        st.subheader("Extracted Results")
 
-        edited_values = []
-        for idx, row in df.iterrows():
-            style = confidence_style(row["Confidence"])
-            st.markdown(
-                f"<div style='{style}'><b>{row['Field']}</b> — {row['Confidence']}</div>",
+        header = st.columns([0.32, 0.38, 0.15, 0.15])
+        header[0].markdown("**Field**")
+        header[1].markdown("**Value**")
+        header[2].markdown("**Confidence**")
+        header[3].markdown("**Page**")
+
+        edited_rows = []
+
+        for i, row in enumerate(rows):
+            cols = st.columns([0.32, 0.38, 0.15, 0.15])
+
+            cols[0].write(row["Field"])
+
+            colour = confidence_colour(row["Confidence"])
+
+            if cols[1].button(str(row["Value"]), key=f"click_{i}", use_container_width=True):
+                st.session_state["selected_row"] = row
+
+            cols[1].markdown(
+                f"<div style='color:{colour}; font-size:12px;'>Click value to view source</div>",
                 unsafe_allow_html=True
             )
-            new_value = st.text_input(
-                label=row["Field"],
-                value=str(row["Value"]),
-                key=f"value_{idx}",
-                label_visibility="collapsed"
+
+            cols[2].markdown(
+                f"<span style='color:{colour}; font-weight:bold;'>{row['Confidence']}</span>",
+                unsafe_allow_html=True
             )
-            edited_values.append(new_value)
 
-            if st.button(f"View source: {row['Field']}", key=f"source_{idx}"):
-                st.session_state["selected_page"] = int(row["Source_Page"])
-                st.session_state["selected_quote"] = row["Source_Quote"]
-                st.session_state["selected_field"] = row["Field"]
+            cols[3].write(row["Page"])
 
-        df["Edited_Value"] = edited_values
+            edited_value = st.text_input(
+                f"Edit {row['Field']}",
+                value=row["Value"],
+                key=f"edit_{i}"
+            )
 
-        export_df = df[["Field", "Edited_Value", "Confidence", "Source_Page", "Source_Quote"]]
+            edited_rows.append({
+                "Field": row["Field"],
+                "Edited_Value": edited_value,
+                "Confidence": row["Confidence"],
+                "Source_Page": row["Page"],
+                "Source_Search": row["Search"]
+            })
+
+        export_df = pd.DataFrame(edited_rows)
 
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -137,24 +169,27 @@ if uploaded_file:
 
         st.download_button(
             "Download Excel",
-            data=output.getvalue(),
+            output.getvalue(),
             file_name="extracted_spec.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
     with right:
-        st.subheader("Source Evidence")
+        st.subheader("PDF Source Viewer")
 
-        if "selected_field" in st.session_state:
-            st.write(f"**Field:** {st.session_state['selected_field']}")
-            st.write(f"**Page:** {st.session_state['selected_page']}")
-            st.info(st.session_state["selected_quote"])
-        else:
-            st.write("Click a field source button to see evidence.")
+        selected = st.session_state["selected_row"]
 
-        st.subheader("PDF Text Preview")
-        page_numbers = [p["page"] for p in pages]
-        selected = st.selectbox("Select page", page_numbers)
+        st.write(f"**Selected field:** {selected['Field']}")
+        st.write(f"**Source page:** {selected['Page']}")
+        st.write(f"**Search/highlight text:** {selected['Search']}")
 
-        selected_text = next(p["text"] for p in pages if p["page"] == selected)
-        st.text_area("Page text", selected_text, height=400)
+        image_bytes, hit_count = render_highlighted_page(
+            pdf_bytes,
+            int(selected["Page"]),
+            selected["Search"]
+        )
+
+        if hit_count == 0:
+            st.warning("Exact highlight not found. Showing source page only.")
+
+        st.image(image_bytes, use_container_width=True)
