@@ -51,11 +51,23 @@ st.markdown("""
     text-align: center;
     font-weight: bold;
 }
+
+/* Makes right-side PDF column behave like fixed split screen */
+div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(2) {
+    position: sticky;
+    top: 0.5rem;
+    align-self: flex-start;
+    height: 96vh;
+    overflow-y: auto;
+    border-left: 2px solid #d0d7de;
+    padding-left: 1rem;
+    background: white;
+}
 </style>
 """, unsafe_allow_html=True)
 
 st.title("QA Specification Extraction Prototype")
-st.caption("Stable split-view version")
+st.caption("Fixed split-screen PDF viewer")
 
 uploaded_file = st.file_uploader("Upload a PDF specification", type=["pdf"])
 
