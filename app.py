@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 import fitz
 import io
@@ -9,11 +8,6 @@ st.set_page_config(page_title="QA Spec Prototype", layout="wide")
 
 st.markdown("""
 <style>
-.main .block-container {
-    max-width: 100%;
-    padding-right: 2rem;
-}
-
 .field-card {
     border: 1px solid #d9dee5;
     border-radius: 12px;
@@ -22,7 +16,6 @@ st.markdown("""
     background: #ffffff;
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
-
 .table-header {
     font-weight: 700;
     background-color: #eef1f5;
@@ -30,23 +23,17 @@ st.markdown("""
     border-radius: 8px;
     margin-bottom: 10px;
 }
-
 .source-text {
     font-size: 12px;
     color: #666;
-    margin-top: 5px;
 }
-
 .conf-high {
-    background-color: transparent;
-    color: black;
     border: 1px solid #ccc;
     padding: 7px;
     border-radius: 7px;
     text-align: center;
     font-weight: bold;
 }
-
 .conf-medium {
     background-color: #fff3cd;
     color: #856404;
@@ -56,7 +43,6 @@ st.markdown("""
     text-align: center;
     font-weight: bold;
 }
-
 .conf-low {
     background-color: #f8d7da;
     color: #721c24;
@@ -66,35 +52,42 @@ st.markdown("""
     text-align: center;
     font-weight: bold;
 }
-
+.fixed-viewer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 50vw;
+    height: 100vh;
+    background: white;
+    z-index: 999999;
+    border-left: 2px solid #cfd4dc;
+    overflow-y: auto;
+    padding: 18px;
+    box-shadow: -4px 0 12px rgba(0,0,0,0.15);
+}
 .left-shrunk {
-    width: 48vw;
+    width: 47vw;
 }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("QA Specification Extraction Prototype")
-st.caption("v0.6 — clean results table with optional fixed PDF source viewer")
+st.caption("v0.7 — working split PDF viewer")
 
 uploaded_file = st.file_uploader("Upload a PDF specification", type=["pdf"])
 
 
 def confidence_class(confidence):
-    if confidence == "High":
-        return "conf-high"
-    if confidence == "Medium":
-        return "conf-medium"
-    if confidence == "Low":
-        return "conf-low"
-    return "conf-high"
+    return {
+        "High": "conf-high",
+        "Medium": "conf-medium",
+        "Low": "conf-low"
+    }.get(confidence, "conf-high")
 
 
 def extract_pdf_text(pdf_bytes):
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    pages = []
-    for i, page in enumerate(doc):
-        pages.append({"page": i + 1, "text": page.get_text()})
-    return pages
+    return [{"page": i + 1, "text": page.get_text()} for i, page in enumerate(doc)]
 
 
 def mock_extract(pages):
@@ -143,24 +136,17 @@ def mock_extract(pages):
             {"Field": "GMO_Free", "Value": "Yes", "Confidence": "High", "Page": 1, "Sources": ["It doesn't contain OGM ingredients"]},
         ]
 
-    return [
-        {"Field": "Product_Name", "Value": "Not extracted", "Confidence": "Low", "Page": 1, "Sources": [""]}
-    ]
+    return [{"Field": "Product_Name", "Value": "Not extracted", "Confidence": "Low", "Page": 1, "Sources": [""]}]
 
 
 def render_highlighted_page(pdf_bytes, page_number, source_terms):
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     page = doc[page_number - 1]
-
     hit_count = 0
 
     for term in source_terms:
-        if not term:
-            continue
-
-        rects = page.search_for(term)
-
-        if not rects:
+        rects = page.search_for(term) if term else []
+        if not rects and term:
             for word in term.split()[:6]:
                 rects.extend(page.search_for(word))
 
@@ -173,7 +159,7 @@ def render_highlighted_page(pdf_bytes, page_number, source_terms):
     return pix.tobytes("png"), hit_count
 
 
-def image_to_base64(image_bytes):
+def b64(image_bytes):
     return base64.b64encode(image_bytes).decode("utf-8")
 
 
@@ -188,9 +174,8 @@ if uploaded_file:
     if "selected_row" not in st.session_state:
         st.session_state["selected_row"] = None
 
-    table_class = "left-shrunk" if st.session_state["pdf_viewer_open"] else ""
-
-    st.markdown(f'<div class="{table_class}">', unsafe_allow_html=True)
+    if st.session_state["pdf_viewer_open"]:
+        st.markdown('<div class="left-shrunk">', unsafe_allow_html=True)
 
     st.subheader("Extracted Results")
 
@@ -205,7 +190,6 @@ if uploaded_file:
         st.markdown('<div class="field-card">', unsafe_allow_html=True)
 
         c1, c2, c3 = st.columns([0.30, 0.52, 0.18])
-
         c1.markdown(f"**{row['Field']}**")
 
         if c2.button(str(row["Value"]), key=f"value_click_{i}", use_container_width=True):
@@ -218,9 +202,8 @@ if uploaded_file:
             unsafe_allow_html=True
         )
 
-        conf_class = confidence_class(row["Confidence"])
         c3.markdown(
-            f'<div class="{conf_class}">{row["Confidence"]}</div>',
+            f'<div class="{confidence_class(row["Confidence"])}">{row["Confidence"]}</div>',
             unsafe_allow_html=True
         )
 
@@ -254,15 +237,18 @@ if uploaded_file:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    if st.session_state["pdf_viewer_open"]:
+        st.markdown('</div>', unsafe_allow_html=True)
 
     if st.session_state["pdf_viewer_open"] and st.session_state["selected_row"]:
         selected = st.session_state["selected_row"]
 
-        if st.button("Close PDF Viewer", key="close_pdf_viewer"):
-            st.session_state["pdf_viewer_open"] = False
-            st.session_state["selected_row"] = None
-            st.rerun()
+        close_col, _ = st.columns([0.25, 0.75])
+        with close_col:
+            if st.button("Close PDF Viewer"):
+                st.session_state["pdf_viewer_open"] = False
+                st.session_state["selected_row"] = None
+                st.rerun()
 
         image_bytes, hit_count = render_highlighted_page(
             pdf_bytes,
@@ -270,67 +256,25 @@ if uploaded_file:
             selected["Sources"]
         )
 
-        img64 = image_to_base64(image_bytes)
-
-        warning_html = ""
+        warning = ""
         if hit_count == 0:
-            warning_html = """
-            <div style="
-                background:#fff3cd;
-                border:1px solid #ffeeba;
-                color:#856404;
-                padding:8px;
-                border-radius:6px;
-                margin-bottom:10px;">
-                No exact highlight found. Showing source page only.
-            </div>
-            """
+            warning = "<div style='background:#fff3cd;padding:8px;border-radius:6px;margin-bottom:8px;'>No exact highlight found. Showing source page only.</div>"
 
-        components.html(
+        st.markdown(
             f"""
-            <div style="
-                position: fixed;
-                top: 0;
-                right: 0;
-                width: 50vw;
-                height: 100vh;
-                background: white;
-                z-index: 999999;
-                border-left: 2px solid #cfd4dc;
-                overflow-y: auto;
-                padding: 18px;
-                box-shadow: -4px 0 12px rgba(0,0,0,0.15);
-                font-family: Arial, sans-serif;
-            ">
+            <div class="fixed-viewer">
                 <h2>PDF Source Viewer</h2>
-
-                <div style="
-                    background:#f4f6f8;
-                    border:1px solid #dfe3e8;
-                    border-radius:8px;
-                    padding:10px;
-                    margin-bottom:12px;">
+                <div style="background:#f4f6f8;border:1px solid #dfe3e8;border-radius:8px;padding:10px;margin-bottom:12px;">
                     <b>Selected field:</b> {selected["Field"]}<br>
                     <b>Source page:</b> {selected["Page"]}<br>
                     <b>Highlighted source text:</b><br>
                     {", ".join(selected["Sources"])}
                 </div>
-
-                {warning_html}
-
-                <img
-                    src="data:image/png;base64,{img64}"
-                    style="
-                        width:100%;
-                        height:auto;
-                        border:1px solid #ddd;
-                        border-radius:8px;
-                    "
-                />
+                {warning}
+                <img src="data:image/png;base64,{b64(image_bytes)}" style="width:100%;height:auto;border:1px solid #ddd;border-radius:8px;" />
             </div>
             """,
-            height=1,
-            scrolling=False
+            unsafe_allow_html=True
         )
 else:
     st.info("Upload a PDF specification to begin.")
