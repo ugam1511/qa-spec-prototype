@@ -11,6 +11,7 @@ st.set_page_config(page_title="SpecStream", layout="wide")
 
 st.markdown("""
 <style>
+.module-card {border:1px solid #d9dee5;border-radius:14px;padding:18px;margin-bottom:14px;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,0.06);}
 .field-card {border:1px solid #d9dee5;border-radius:12px;padding:14px;margin-bottom:12px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
 .table-header {font-weight:700;background-color:#eef1f5;padding:10px;border-radius:8px;margin-bottom:10px;}
 .source-text {font-size:12px;color:#666;}
@@ -22,33 +23,23 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 EXPORT_COLUMNS = [
-    "SKU", "Name", "Supplier code",
-    "Celery", "Cereals", "Crustaceans", "Eggs", "Fish", "Lupin", "Milk",
-    "Molluscs", "Mustard", "Nuts", "Peanuts", "Sesame Seeds", "Soya",
-    "Sulphur dioxide", "Vegetarian", "Vegan", "Contains GM Protein/DNA",
-    "Palm oil", "Coeliacs", "Halal", "Kosher", "Organic",
-    "KJ", "Kcal", "Fat", "Saturates", "Carbs", "Sugars", "Fibre",
-    "Protein", "Salt", "Ingredients table"
+    "SKU", "Name", "Supplier code", "Celery", "Cereals", "Crustaceans", "Eggs", "Fish", "Lupin", "Milk",
+    "Molluscs", "Mustard", "Nuts", "Peanuts", "Sesame Seeds", "Soya", "Sulphur dioxide",
+    "Vegetarian", "Vegan", "Contains GM Protein/DNA", "Palm oil", "Coeliacs", "Halal", "Kosher", "Organic",
+    "KJ", "Kcal", "Fat", "Saturates", "Carbs", "Sugars", "Fibre", "Protein", "Salt", "Ingredients table"
 ]
 
-DISPLAY_FIELDS = [col for col in EXPORT_COLUMNS if col not in ["SKU", "Supplier code"]]
+DISPLAY_FIELDS = [c for c in EXPORT_COLUMNS if c not in ["SKU", "Supplier code"]]
 
 ALLERGEN_FIELDS = [
     "Celery", "Cereals", "Crustaceans", "Eggs", "Fish", "Lupin", "Milk",
-    "Molluscs", "Mustard", "Nuts", "Peanuts", "Sesame Seeds", "Soya",
-    "Sulphur dioxide"
+    "Molluscs", "Mustard", "Nuts", "Peanuts", "Sesame Seeds", "Soya", "Sulphur dioxide"
 ]
 
 
 def get_google_sheet():
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    creds = Credentials.from_service_account_info(
-        dict(st.secrets["gcp_service_account"]),
-        scopes=scopes
-    )
+    scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+    creds = Credentials.from_service_account_info(dict(st.secrets["gcp_service_account"]), scopes=scopes)
     client = gspread.authorize(creds)
     return client.open(st.secrets["google"]["sheet_name"])
 
@@ -56,14 +47,13 @@ def get_google_sheet():
 def append_to_sheet(tab_name, row_dict, sheet=None):
     if sheet is None:
         sheet = get_google_sheet()
-    worksheet = sheet.worksheet(tab_name)
-    headers = worksheet.row_values(1)
-    row = [row_dict.get(header, "") for header in headers]
-    worksheet.append_row(row, value_input_option="USER_ENTERED")
+    ws = sheet.worksheet(tab_name)
+    headers = ws.row_values(1)
+    ws.append_row([row_dict.get(h, "") for h in headers], value_input_option="USER_ENTERED")
 
 
-def confidence_class(confidence):
-    return {"High": "conf-high", "Medium": "conf-medium", "Low": "conf-low"}.get(confidence, "conf-high")
+def confidence_class(conf):
+    return {"High": "conf-high", "Medium": "conf-medium", "Low": "conf-low"}.get(conf, "conf-high")
 
 
 def extract_pdf_text(pdf_bytes):
@@ -72,34 +62,20 @@ def extract_pdf_text(pdf_bytes):
 
 
 def row(field, value, confidence="High", page=1, sources=None):
-    return {
-        "Field": field,
-        "Value": value,
-        "Confidence": confidence,
-        "Page": page,
-        "Sources": sources or []
-    }
+    return {"Field": field, "Value": value, "Confidence": confidence, "Page": page, "Sources": sources or []}
 
 
 def normalise_rows(raw_rows):
-    """
-    Makes sure every export/display field exists.
-    Missing allergen fields default to No.
-    Missing other fields default to blank.
-    """
     by_field = {r["Field"]: r for r in raw_rows}
-    final_rows = []
-
+    final = []
     for field in DISPLAY_FIELDS:
         if field in by_field:
-            final_rows.append(by_field[field])
+            final.append(by_field[field])
+        elif field in ALLERGEN_FIELDS:
+            final.append(row(field, "No", "Medium", 1, ["No evidence extracted in mock mode"]))
         else:
-            if field in ALLERGEN_FIELDS:
-                final_rows.append(row(field, "No", "Medium", 1, ["No evidence extracted in mock mode"]))
-            else:
-                final_rows.append(row(field, "", "Low", 1, ["Field not extracted in mock mode"]))
-
-    return final_rows
+            final.append(row(field, "", "Low", 1, ["Field not extracted in mock mode"]))
+    return final
 
 
 def mock_extract(pages):
@@ -109,7 +85,6 @@ def mock_extract(pages):
         raw = [
             row("Name", "GROUND CUMIN", "High", 1, ["Product Name GROUND CUMIN"]),
             row("Ingredients table", "Cumin", "High", 1, ["Ingredients declaration Cumin"]),
-
             row("Celery", "No", "High", 4, ["Celery", "Present in Product No"]),
             row("Cereals", "No", "High", 4, ["Cereals containing gluten", "Present in Product No"]),
             row("Crustaceans", "No", "High", 4, ["Crustaceans", "Present in Product No"]),
@@ -124,7 +99,6 @@ def mock_extract(pages):
             row("Sesame Seeds", "No", "High", 4, ["Sesame Seeds", "Present in Product No"]),
             row("Soya", "No", "High", 4, ["Soybeans", "Present in Product No"]),
             row("Sulphur dioxide", "No", "High", 4, ["Sulphur dioxide", "Present in Product No"]),
-
             row("Vegetarian", "Suitable", "High", 3, ["Vegetarians YES"]),
             row("Vegan", "Suitable", "High", 3, ["Vegans YES"]),
             row("Contains GM Protein/DNA", "No", "High", 5, ["This product needs declaration as GMO No"]),
@@ -133,7 +107,6 @@ def mock_extract(pages):
             row("Halal", "Suitable (not certified)", "High", 3, ["Halal YES", "Not Certified"]),
             row("Kosher", "Suitable (not certified)", "High", 3, ["Kosher YES", "Not Certified"]),
             row("Organic", "No", "High", 5, ["No organic claim found"]),
-
             row("KJ", "1783", "High", 3, ["kj 1783"]),
             row("Kcal", "427", "High", 3, ["kcal 427"]),
             row("Fat", "22.3", "High", 3, ["Fat (g) 22.3"]),
@@ -150,22 +123,9 @@ def mock_extract(pages):
         raw = [
             row("Name", "Pineapple Paste", "High", 1, ["ANANAS", "PINEAPPLE"]),
             row("Ingredients table", "Glucose syrup, Saccharose syrup, Citric acid, Vegetable fibre (Inulin), Flavours, Pectin, E100, E160b", "High", 1, ["GLUCOSE SYRUP", "SACCHAROSE SYRUP", "CITRIC ACID", "VEGETABLE FIBER", "FLAVOURS", "PECTIN", "E100", "E160b"]),
-
-            row("Celery", "No", "High", 1, ["MAY CONTAIN TRACES"]),
-            row("Cereals", "No", "High", 1, ["No gluten-containing ingredients identified"]),
-            row("Crustaceans", "No", "High", 1, ["MAY CONTAIN TRACES"]),
-            row("Eggs", "No", "High", 1, ["MAY CONTAIN TRACES"]),
-            row("Fish", "No", "High", 1, ["MAY CONTAIN TRACES"]),
-            row("Lupin", "No", "High", 1, ["MAY CONTAIN TRACES"]),
             row("Milk", "May Contain", "High", 1, ["MILK", "MAY CONTAIN TRACES"]),
-            row("Molluscs", "No", "High", 1, ["MAY CONTAIN TRACES"]),
-            row("Mustard", "No", "High", 1, ["MAY CONTAIN TRACES"]),
             row("Nuts", "May Contain", "High", 1, ["SHELLED NUTS"]),
-            row("Peanuts", "No", "Medium", 1, ["SHELLED NUTS"]),
-            row("Sesame Seeds", "No", "High", 1, ["MAY CONTAIN TRACES"]),
             row("Soya", "May Contain", "High", 1, ["SOY"]),
-            row("Sulphur dioxide", "No", "High", 1, ["MAY CONTAIN TRACES"]),
-
             row("Vegetarian", "Suitable", "High", 1, ["Composition"]),
             row("Vegan", "Suitable", "Medium", 1, ["FLAVOURS"]),
             row("Contains GM Protein/DNA", "No", "High", 1, ["It doesn't contain OGM ingredients"]),
@@ -174,7 +134,6 @@ def mock_extract(pages):
             row("Halal", "No", "High", 1, ["No halal statement found"]),
             row("Kosher", "No", "High", 1, ["No kosher statement found"]),
             row("Organic", "No", "High", 1, ["No organic claim found"]),
-
             row("KJ", "1160.11", "High", 1, ["1160,11 Kj"]),
             row("Kcal", "277.36", "High", 1, ["277,36 Kcal"]),
             row("Fat", "0.39", "High", 1, ["FATS 0,39"]),
@@ -191,7 +150,6 @@ def mock_extract(pages):
         raw = [
             row("Name", "BRESAOLA INTERA – PUNTA D'ANCA – VACUUM PACKED", "High", 1, ["BRESAOLA INTERA", "PUNTA D’ANCA", "VACUUM PACKED"]),
             row("Ingredients table", "Beef, Salt, Dextrose, Natural flavours, Sodium nitrite (E250), Potassium nitrate (E252)", "High", 1, ["Carne bovina", "Beef", "Sale", "Salt", "Destrosio", "Dextrose", "Aromi naturali", "Natural flavours", "E250", "E252"]),
-
             row("Celery", "No", "High", 3, ["Sedano", "Celery"]),
             row("Cereals", "No", "High", 4, ["SENZA GLUTINE", "GLUTENFREI"]),
             row("Crustaceans", "No", "High", 3, ["Crostacei", "Crustaceans"]),
@@ -206,7 +164,6 @@ def mock_extract(pages):
             row("Sesame Seeds", "No", "High", 3, ["Semi di sesamo", "Sesame"]),
             row("Soya", "No", "High", 3, ["Soia", "Soy"]),
             row("Sulphur dioxide", "No", "High", 3, ["Anidride solforosa", "Sulphites"]),
-
             row("Vegetarian", "No", "High", 1, ["Carne bovina", "Beef"]),
             row("Vegan", "No", "High", 1, ["Carne bovina", "Beef"]),
             row("Contains GM Protein/DNA", "No", "High", 3, ["OGM", "GMO", "NO"]),
@@ -215,7 +172,6 @@ def mock_extract(pages):
             row("Halal", "No", "High", 4, ["if raw material has been butchered with Halal rite", "Lot code encoding"]),
             row("Kosher", "No", "High", 1, ["No kosher statement found"]),
             row("Organic", "No", "High", 1, ["No organic claim found"]),
-
             row("KJ", "665", "High", 2, ["Energy value", "KJ", "665"]),
             row("Kcal", "159", "High", 2, ["Energy value", "Kcal", "159"]),
             row("Fat", "4", "High", 2, ["Grassi", "Fat", "4"]),
@@ -228,9 +184,7 @@ def mock_extract(pages):
         ]
         return normalise_rows(raw)
 
-    return normalise_rows([
-        row("Name", "Not extracted", "Low", 1, ["Unknown document format in mock mode"])
-    ])
+    return normalise_rows([row("Name", "Not extracted", "Low", 1, ["Unknown document format in mock mode"])])
 
 
 def render_highlighted_page(pdf_bytes, page_number, source_terms):
@@ -257,27 +211,16 @@ def make_export_row(metadata, edited_values):
     export_row["SKU"] = metadata["sku"]
     export_row["Name"] = metadata["name"]
     export_row["Supplier code"] = metadata["supplier_code"]
-
     for field, value in edited_values.items():
         if field in export_row:
             export_row[field] = value
-
     return pd.DataFrame([export_row], columns=EXPORT_COLUMNS)
 
 
 def build_extracted_data_row(spec_id, metadata, edited_values, rows):
     export_row = make_export_row(metadata, edited_values).iloc[0].to_dict()
-
     medium_low_count = sum(1 for r in rows if r["Confidence"] in ["Medium", "Low"])
-    evidence = [
-        {
-            "Field": r["Field"],
-            "Confidence": r["Confidence"],
-            "Source_Page": r["Page"],
-            "Source_Text": r["Sources"]
-        }
-        for r in rows
-    ]
+    evidence = [{"Field": r["Field"], "Confidence": r["Confidence"], "Source_Page": r["Page"], "Source_Text": r["Sources"]} for r in rows]
 
     extracted_row = {
         "Spec_ID": spec_id,
@@ -301,19 +244,8 @@ def save_to_google_sheets(metadata, edited_values, rows, uploaded_filename):
     spec_id = "SPEC-" + datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + str(uuid.uuid4())[:8].upper()
     medium_low_count = sum(1 for r in rows if r["Confidence"] in ["Medium", "Low"])
 
-    product_record = {
-        "SKU": metadata["sku"],
-        "Product_Name": metadata["name"],
-        "Product_Status": "Active",
-        "Notes": ""
-    }
-
-    supplier_record = {
-        "Supplier_Code": metadata["supplier_code"],
-        "Supplier_Name": metadata["supplier_name"],
-        "Supplier_Status": "Active",
-        "Notes": ""
-    }
+    product_record = {"SKU": metadata["sku"], "Product_Name": metadata["name"], "Product_Status": "Active", "Notes": ""}
+    supplier_record = {"Supplier_Code": metadata["supplier_code"], "Supplier_Name": metadata["supplier_name"], "Supplier_Status": "Active", "Notes": ""}
 
     specification_record = {
         "Spec_ID": spec_id,
@@ -350,27 +282,37 @@ def save_to_google_sheets(metadata, edited_values, rows, uploaded_filename):
     }
 
 
-st.title("SpecStream")
-st.caption("Google Sheets-connected version: allergen-safe, one row per specification")
-
-if "mode" not in st.session_state:
-    st.session_state["mode"] = "home"
-
-if st.session_state["mode"] == "home":
-    st.subheader("Home")
-    st.text_input("Search by SKU, product name, supplier code or supplier name")
-    st.info("Search will be connected after save-to-database is verified.")
-
-    if st.button("Add new product / specification"):
-        st.session_state["mode"] = "add"
-        st.rerun()
-
-elif st.session_state["mode"] == "add":
-    if st.button("← Back to home"):
+def module_placeholder(title, description, fields):
+    if st.button("← Back to dashboard"):
         st.session_state["mode"] = "home"
         st.rerun()
 
-    st.subheader("Add Product / Specification")
+    st.title(title)
+    st.write(description)
+    st.info("This module is included in the SpecStream roadmap. The full workflow will be built after the pilot is approved.")
+
+    st.subheader("Planned record fields")
+    for f in fields:
+        st.text_input(f, disabled=True)
+
+    st.subheader("Planned capabilities")
+    st.markdown("""
+- Search and filter records
+- Attach emails, PDFs, photos, videos and evidence
+- Link to products, suppliers and specifications
+- Track open/closed status
+- Maintain full communication history
+- Export reports
+- AI assistant support in future
+""")
+
+
+def specifications_module():
+    if st.button("← Back to dashboard"):
+        st.session_state["mode"] = "home"
+        st.rerun()
+
+    st.subheader("Specifications")
 
     sku = st.text_input("SKU / Product Code *")
     product_name = st.text_input("Product Name *")
@@ -382,147 +324,206 @@ elif st.session_state["mode"] == "add":
 
     if not required_complete:
         st.warning("Enter SKU, product name, supplier code, supplier name and upload a PDF before extraction/export/save.")
+        return
 
-    if required_complete:
-        metadata = {
-            "sku": sku.strip(),
-            "name": product_name.strip(),
-            "supplier_code": supplier_code.strip(),
-            "supplier_name": supplier_name.strip(),
-            "upload_date": str(date.today())
-        }
+    metadata = {
+        "sku": sku.strip(),
+        "name": product_name.strip(),
+        "supplier_code": supplier_code.strip(),
+        "supplier_name": supplier_name.strip(),
+        "upload_date": str(date.today())
+    }
 
-        pdf_bytes = uploaded_file.read()
-        pages = extract_pdf_text(pdf_bytes)
-        rows = mock_extract(pages)
+    pdf_bytes = uploaded_file.read()
+    pages = extract_pdf_text(pdf_bytes)
+    rows = mock_extract(pages)
 
-        if "pdf_viewer_open" not in st.session_state:
-            st.session_state["pdf_viewer_open"] = False
+    if "pdf_viewer_open" not in st.session_state:
+        st.session_state["pdf_viewer_open"] = False
+    if "selected_row" not in st.session_state:
+        st.session_state["selected_row"] = None
 
-        if "selected_row" not in st.session_state:
-            st.session_state["selected_row"] = None
+    if st.session_state["pdf_viewer_open"] and st.session_state["selected_row"]:
+        left, right = st.columns([1, 1])
+    else:
+        left = st.container()
+        right = None
 
-        if st.session_state["pdf_viewer_open"] and st.session_state["selected_row"]:
-            left, right = st.columns([1, 1])
-        else:
-            left = st.container()
-            right = None
+    edited_values = {}
 
-        edited_values = {}
+    with left:
+        st.subheader("Extracted Results")
+        st.write(f"**SKU:** {metadata['sku']}")
+        st.write(f"**Product Name:** {metadata['name']}")
+        st.write(f"**Supplier Code:** {metadata['supplier_code']}")
+        st.write(f"**Supplier Name:** {metadata['supplier_name']}")
 
-        with left:
-            st.subheader("Extracted Results")
-            st.write(f"**SKU:** {metadata['sku']}")
-            st.write(f"**Product Name:** {metadata['name']}")
-            st.write(f"**Supplier Code:** {metadata['supplier_code']}")
-            st.write(f"**Supplier Name:** {metadata['supplier_name']}")
+        h1, h2, h3 = st.columns([0.30, 0.52, 0.18])
+        h1.markdown('<div class="table-header">Field</div>', unsafe_allow_html=True)
+        h2.markdown('<div class="table-header">Value</div>', unsafe_allow_html=True)
+        h3.markdown('<div class="table-header">Confidence</div>', unsafe_allow_html=True)
 
-            h1, h2, h3 = st.columns([0.30, 0.52, 0.18])
-            h1.markdown('<div class="table-header">Field</div>', unsafe_allow_html=True)
-            h2.markdown('<div class="table-header">Value</div>', unsafe_allow_html=True)
-            h3.markdown('<div class="table-header">Confidence</div>', unsafe_allow_html=True)
+        for i, r in enumerate(rows):
+            st.markdown('<div class="field-card">', unsafe_allow_html=True)
+            c1, c2, c3 = st.columns([0.30, 0.52, 0.18])
+            c1.markdown(f"**{r['Field']}**")
 
-            for i, r in enumerate(rows):
-                st.markdown('<div class="field-card">', unsafe_allow_html=True)
-                c1, c2, c3 = st.columns([0.30, 0.52, 0.18])
+            if c2.button(str(r["Value"]), key=f"value_click_{i}", use_container_width=True):
+                st.session_state["selected_row"] = r
+                st.session_state["pdf_viewer_open"] = True
+                st.rerun()
 
-                c1.markdown(f"**{r['Field']}**")
+            c2.markdown(f'<div class="source-text">Source text: {", ".join(r["Sources"])}</div>', unsafe_allow_html=True)
+            c3.markdown(f'<div class="{confidence_class(r["Confidence"])}">{r["Confidence"]}</div>', unsafe_allow_html=True)
 
-                if c2.button(str(r["Value"]), key=f"value_click_{i}", use_container_width=True):
-                    st.session_state["selected_row"] = r
-                    st.session_state["pdf_viewer_open"] = True
-                    st.rerun()
+            edited_value = st.text_input(f"Edit {r['Field']}", value=r["Value"], key=f"edit_{i}", label_visibility="collapsed")
+            edited_values[r["Field"]] = edited_value
+            st.markdown('</div>', unsafe_allow_html=True)
 
-                c2.markdown(
-                    f'<div class="source-text">Source text: {", ".join(r["Sources"])}</div>',
-                    unsafe_allow_html=True
-                )
+        export_df = make_export_row(metadata, edited_values)
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            export_df.to_excel(writer, index=False, sheet_name="Export")
 
-                c3.markdown(
-                    f'<div class="{confidence_class(r["Confidence"])}">{r["Confidence"]}</div>',
-                    unsafe_allow_html=True
-                )
+        st.download_button(
+            "Download Excel in Required Format",
+            output.getvalue(),
+            file_name=f"{metadata['sku']}_spec_export.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
-                edited_value = st.text_input(
-                    f"Edit {r['Field']}",
-                    value=r["Value"],
-                    key=f"edit_{i}",
-                    label_visibility="collapsed"
-                )
+        st.markdown("---")
+        st.subheader("Save Specification")
 
-                edited_values[r["Field"]] = edited_value
-                st.markdown('</div>', unsafe_allow_html=True)
+        if st.button("Save record to SpecStream"):
+            try:
+                save_summary = save_to_google_sheets(metadata, edited_values, rows, uploaded_file.name)
+                st.session_state["saved_summary"] = save_summary
+                st.success("Specification saved successfully to Google Sheets.")
+            except Exception as e:
+                st.error("Save failed.")
+                st.exception(e)
 
-            export_df = make_export_row(metadata, edited_values)
-
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine="openpyxl") as writer:
-                export_df.to_excel(writer, index=False, sheet_name="Export")
-
-            st.download_button(
-                "Download Excel in Required Format",
-                output.getvalue(),
-                file_name=f"{metadata['sku']}_spec_export.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        if "saved_summary" in st.session_state:
+            saved = st.session_state["saved_summary"]
+            st.markdown(
+                f"""
+                <div class="save-card">
+                    <h3>Saved Successfully</h3>
+                    <b>Spec ID:</b> {saved["spec_id"]}<br>
+                    <b>SKU:</b> {saved["sku"]}<br>
+                    <b>Product:</b> {saved["product_name"]}<br>
+                    <b>Supplier:</b> {saved["supplier_code"]} - {saved["supplier_name"]}<br>
+                    <b>Spec Status:</b> {saved["spec_status"]}<br>
+                    <b>Version:</b> {saved["version"]}<br>
+                    <b>Upload Date:</b> {saved["upload_date"]}<br>
+                    <b>Extraction Status:</b> {saved["extraction_status"]}<br>
+                    <b>Fields Extracted:</b> {saved["fields_extracted"]}<br>
+                    <b>Fields Requiring Review:</b> {saved["fields_requiring_review"]}<br>
+                </div>
+                """,
+                unsafe_allow_html=True
             )
 
-            st.markdown("---")
-            st.subheader("Save Specification")
+    if right is not None:
+        with right:
+            selected = st.session_state["selected_row"]
+            top1, top2 = st.columns([0.7, 0.3])
+            top1.subheader("PDF Source Viewer")
 
-            if st.button("Save record to SpecStream"):
-                try:
-                    save_summary = save_to_google_sheets(metadata, edited_values, rows, uploaded_file.name)
-                    st.session_state["saved_summary"] = save_summary
-                    st.success("Specification saved successfully to Google Sheets.")
-                except Exception as e:
-                    st.error("Save failed.")
-                    st.exception(e)
+            if top2.button("Close"):
+                st.session_state["pdf_viewer_open"] = False
+                st.session_state["selected_row"] = None
+                st.rerun()
 
-            if "saved_summary" in st.session_state:
-                saved = st.session_state["saved_summary"]
-                st.markdown(
-                    f"""
-                    <div class="save-card">
-                        <h3>Saved Successfully</h3>
-                        <b>Spec ID:</b> {saved["spec_id"]}<br>
-                        <b>SKU:</b> {saved["sku"]}<br>
-                        <b>Product:</b> {saved["product_name"]}<br>
-                        <b>Supplier:</b> {saved["supplier_code"]} - {saved["supplier_name"]}<br>
-                        <b>Spec Status:</b> {saved["spec_status"]}<br>
-                        <b>Version:</b> {saved["version"]}<br>
-                        <b>Upload Date:</b> {saved["upload_date"]}<br>
-                        <b>Extraction Status:</b> {saved["extraction_status"]}<br>
-                        <b>Fields Extracted:</b> {saved["fields_extracted"]}<br>
-                        <b>Fields Requiring Review:</b> {saved["fields_requiring_review"]}<br>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+            st.info(f"Selected field: {selected['Field']} | Page: {selected['Page']} | Sources: {', '.join(selected['Sources'])}")
 
-        if right is not None:
-            with right:
-                selected = st.session_state["selected_row"]
-                top1, top2 = st.columns([0.7, 0.3])
-                top1.subheader("PDF Source Viewer")
+            image_bytes, hit_count = render_highlighted_page(pdf_bytes, int(selected["Page"]), selected["Sources"])
+            if hit_count == 0:
+                st.warning("No exact highlight found. Showing source page only.")
+            st.image(image_bytes, use_container_width=True)
 
-                if top2.button("Close"):
-                    st.session_state["pdf_viewer_open"] = False
-                    st.session_state["selected_row"] = None
-                    st.rerun()
 
-                st.info(
-                    f"Selected field: {selected['Field']} | "
-                    f"Page: {selected['Page']} | "
-                    f"Sources: {', '.join(selected['Sources'])}"
-                )
+st.title("SpecStream")
+st.caption("Food QA Management System Prototype")
 
-                image_bytes, hit_count = render_highlighted_page(
-                    pdf_bytes,
-                    int(selected["Page"]),
-                    selected["Sources"]
-                )
+if "mode" not in st.session_state:
+    st.session_state["mode"] = "home"
 
-                if hit_count == 0:
-                    st.warning("No exact highlight found. Showing source page only.")
+if st.session_state["mode"] == "home":
+    st.subheader("Dashboard")
+    st.write("SpecStream is designed as a wider QA management system. The Specifications module is currently functional; other modules are shown as planned workflows.")
 
-                st.image(image_bytes, use_container_width=True)
+    modules = [
+        ("Specifications", "AI-assisted specification extraction, review, evidence checking and export.", "specifications"),
+        ("Complaints", "Customer complaint records, evidence, product links, supplier links and status tracking.", "complaints"),
+        ("CAPA / Quality Events", "Internal incidents, recalls, date extensions, holds, concessions and quality events.", "capa"),
+        ("Supplier Communications", "Supplier emails, certificates, specification requests, contacts and technical communication history.", "supplier_comms"),
+        ("Customer Communications", "Customer requests, certificates, forms, questionnaires and recurring technical responses.", "customer_comms"),
+        ("Environmental Monitoring", "Sampling schedules, results, failures, retests, trends and corrective actions.", "environment"),
+        ("Internal Audits", "Audit schedules, checklists, findings, non-conformances and closures.", "audits"),
+        ("NPD", "New product development workflow, trials, specs, artwork, allergen/nutrition checks and launch approvals.", "npd"),
+    ]
+
+    for name, desc, mode in modules:
+        with st.container():
+            st.markdown('<div class="module-card">', unsafe_allow_html=True)
+            c1, c2 = st.columns([0.75, 0.25])
+            c1.markdown(f"### {name}")
+            c1.write(desc)
+            if c2.button(f"Open {name}", key=f"open_{mode}"):
+                st.session_state["mode"] = mode
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
+elif st.session_state["mode"] == "specifications":
+    specifications_module()
+
+elif st.session_state["mode"] == "complaints":
+    module_placeholder(
+        "Complaints",
+        "Customer complaint management module.",
+        ["Complaint ID", "Complaint Category", "Date Notification Received", "Customer Code", "Product Code(s)", "Supplier per SKU", "Status", "Evidence / Email Folder"]
+    )
+
+elif st.session_state["mode"] == "capa":
+    module_placeholder(
+        "CAPA / Quality Events",
+        "Internal incidents, recalls, date extensions, concessions, holds and other quality events.",
+        ["CAPA / Event ID", "Event Type", "Date Notification Received", "Customer Code if Applicable", "Product Code(s)", "Supplier per SKU", "Status", "Evidence / Communication Folder"]
+    )
+
+elif st.session_state["mode"] == "supplier_comms":
+    module_placeholder(
+        "Supplier Communications",
+        "Supplier communication history, requests, certificates, specifications and contacts.",
+        ["Supplier Code", "Supplier Name", "Contact Person", "Communication Type", "Linked Product/SKU", "Status", "Email / Attachment Records"]
+    )
+
+elif st.session_state["mode"] == "customer_comms":
+    module_placeholder(
+        "Customer Communications",
+        "Customer requests, certificates, forms, questionnaires and recurring technical responses.",
+        ["Customer Code", "Customer Name", "Request Type", "Linked Product/SKU", "Form / Certificate Requested", "Status", "Previous Similar Response"]
+    )
+
+elif st.session_state["mode"] == "environment":
+    module_placeholder(
+        "Environmental Monitoring",
+        "Environmental monitoring schedule, results, retests, failures and trending.",
+        ["Sample ID", "Site / Area", "Sample Type", "Date Taken", "Result", "Limit", "Status", "Corrective Action"]
+    )
+
+elif st.session_state["mode"] == "audits":
+    module_placeholder(
+        "Internal Audits",
+        "Internal audits, checklists, findings, non-conformances and closure evidence.",
+        ["Audit ID", "Audit Area", "Audit Date", "Auditor", "Finding", "Severity", "Owner", "Due Date", "Status"]
+    )
+
+elif st.session_state["mode"] == "npd":
+    module_placeholder(
+        "NPD",
+        "New product development workflow from trial to launch approval.",
+        ["Project ID", "Product Name", "Customer", "Stage", "Trial Date", "Specification Status", "Artwork Status", "Launch Status"]
+    )
