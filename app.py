@@ -11,58 +11,13 @@ st.set_page_config(page_title="SpecStream", layout="wide")
 
 st.markdown("""
 <style>
-.field-card {
-    border: 1px solid #d9dee5;
-    border-radius: 12px;
-    padding: 14px;
-    margin-bottom: 12px;
-    background: #ffffff;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-}
-.table-header {
-    font-weight: 700;
-    background-color: #eef1f5;
-    padding: 10px;
-    border-radius: 8px;
-    margin-bottom: 10px;
-}
-.source-text {
-    font-size: 12px;
-    color: #666;
-}
-.conf-high {
-    border: 1px solid #ccc;
-    padding: 7px;
-    border-radius: 7px;
-    text-align: center;
-    font-weight: bold;
-}
-.conf-medium {
-    background-color: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffeeba;
-    padding: 7px;
-    border-radius: 7px;
-    text-align: center;
-    font-weight: bold;
-}
-.conf-low {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-    padding: 7px;
-    border-radius: 7px;
-    text-align: center;
-    font-weight: bold;
-}
-.save-card {
-    border: 1px solid #badbcc;
-    background-color: #d1e7dd;
-    color: #0f5132;
-    border-radius: 12px;
-    padding: 18px;
-    margin-top: 18px;
-}
+.field-card {border:1px solid #d9dee5;border-radius:12px;padding:14px;margin-bottom:12px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
+.table-header {font-weight:700;background-color:#eef1f5;padding:10px;border-radius:8px;margin-bottom:10px;}
+.source-text {font-size:12px;color:#666;}
+.conf-high {border:1px solid #ccc;padding:7px;border-radius:7px;text-align:center;font-weight:bold;}
+.conf-medium {background-color:#fff3cd;color:#856404;border:1px solid #ffeeba;padding:7px;border-radius:7px;text-align:center;font-weight:bold;}
+.conf-low {background-color:#f8d7da;color:#721c24;border:1px solid #f5c6cb;padding:7px;border-radius:7px;text-align:center;font-weight:bold;}
+.save-card {border:1px solid #badbcc;background-color:#d1e7dd;color:#0f5132;border-radius:12px;padding:18px;margin-top:18px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -76,42 +31,32 @@ EXPORT_COLUMNS = [
     "Protein", "Salt", "Ingredients table"
 ]
 
-
 def get_google_sheet():
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
-
     creds = Credentials.from_service_account_info(
         dict(st.secrets["gcp_service_account"]),
         scopes=scopes
     )
-
     client = gspread.authorize(creds)
     return client.open(st.secrets["google"]["sheet_name"])
 
-
-def append_to_sheet(tab_name, row_dict):
-    sheet = get_google_sheet()
+def append_to_sheet(tab_name, row_dict, sheet=None):
+    if sheet is None:
+        sheet = get_google_sheet()
     worksheet = sheet.worksheet(tab_name)
     headers = worksheet.row_values(1)
     row = [row_dict.get(header, "") for header in headers]
     worksheet.append_row(row, value_input_option="USER_ENTERED")
 
-
 def confidence_class(confidence):
-    return {
-        "High": "conf-high",
-        "Medium": "conf-medium",
-        "Low": "conf-low"
-    }.get(confidence, "conf-high")
-
+    return {"High": "conf-high", "Medium": "conf-medium", "Low": "conf-low"}.get(confidence, "conf-high")
 
 def extract_pdf_text(pdf_bytes):
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     return [{"page": i + 1, "text": page.get_text()} for i, page in enumerate(doc)]
-
 
 def mock_extract(pages):
     joined = "\n".join(p["text"] for p in pages).lower()
@@ -191,12 +136,10 @@ def mock_extract(pages):
 
     return [{"Field": "Name", "Value": "Not extracted", "Confidence": "Low", "Page": 1, "Sources": ["Unknown document format in mock mode"]}]
 
-
 def render_highlighted_page(pdf_bytes, page_number, source_terms):
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     page = doc[page_number - 1]
     hit_count = 0
-
     for term in source_terms:
         if not term:
             continue
@@ -208,23 +151,57 @@ def render_highlighted_page(pdf_bytes, page_number, source_terms):
             annot = page.add_highlight_annot(rect)
             annot.update()
             hit_count += 1
-
     pix = page.get_pixmap(matrix=fitz.Matrix(1.7, 1.7), alpha=False)
     return pix.tobytes("png"), hit_count
-
 
 def make_export_row(metadata, edited_values):
     row = {col: "" for col in EXPORT_COLUMNS}
     row["SKU"] = metadata["sku"]
     row["Name"] = metadata["name"]
     row["Supplier code"] = metadata["supplier_code"]
-
     for field, value in edited_values.items():
         if field in row:
             row[field] = value
-
     return pd.DataFrame([row], columns=EXPORT_COLUMNS)
 
+def build_extracted_data_row(spec_id, metadata, edited_values, rows):
+    export_row = {col: "" for col in EXPORT_COLUMNS}
+    export_row["SKU"] = metadata["sku"]
+    export_row["Name"] = metadata["name"]
+    export_row["Supplier code"] = metadata["supplier_code"]
+
+    for field, value in edited_values.items():
+        if field in export_row:
+            export_row[field] = value
+
+    medium_low_count = sum(1 for row in rows if row["Confidence"] in ["Medium", "Low"])
+    review_required = "Yes" if medium_low_count > 0 else "No"
+
+    evidence = []
+    for row in rows:
+        evidence.append({
+            "Field": row["Field"],
+            "Confidence": row["Confidence"],
+            "Source_Page": row["Page"],
+            "Source_Text": row["Sources"]
+        })
+
+    extracted_row = {
+        "Spec_ID": spec_id,
+        "SKU": metadata["sku"],
+        "Name": metadata["name"],
+        "Supplier_Code": metadata["supplier_code"],
+        "Confidence_Summary": f"{medium_low_count} fields require review",
+        "Review_Required": review_required,
+        "Evidence_JSON": str(evidence)
+    }
+
+    for col, value in export_row.items():
+        if col == "Supplier code":
+            continue
+        extracted_row[col] = value
+
+    return extracted_row
 
 def save_to_google_sheets(metadata, edited_values, rows, uploaded_filename):
     spec_id = "SPEC-" + datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + str(uuid.uuid4())[:8].upper()
@@ -257,23 +234,13 @@ def save_to_google_sheets(metadata, edited_values, rows, uploaded_filename):
         "Archive_Date": ""
     }
 
-    append_to_sheet("Products", product_record)
-    append_to_sheet("Suppliers", supplier_record)
-    append_to_sheet("Specifications", specification_record)
+    extracted_data_row = build_extracted_data_row(spec_id, metadata, edited_values, rows)
 
-    for row in rows:
-        field = row["Field"]
-        extracted_record = {
-            "Spec_ID": spec_id,
-            "Field": field,
-            "Value": row["Value"],
-            "Confidence": row["Confidence"],
-            "Source_Page": row["Page"],
-            "Source_Text": ", ".join(row["Sources"]),
-            "Edited_Value": edited_values.get(field, row["Value"]),
-            "Review_Required": "Yes" if row["Confidence"] in ["Medium", "Low"] else "No"
-        }
-        append_to_sheet("Extracted_Data", extracted_record)
+    sheet = get_google_sheet()
+    append_to_sheet("Products", product_record, sheet)
+    append_to_sheet("Suppliers", supplier_record, sheet)
+    append_to_sheet("Specifications", specification_record, sheet)
+    append_to_sheet("Extracted_Data", extracted_data_row, sheet)
 
     return {
         "spec_id": spec_id,
@@ -292,9 +259,8 @@ def save_to_google_sheets(metadata, edited_values, rows, uploaded_filename):
         "fields_requiring_review": medium_low_count
     }
 
-
 st.title("SpecStream")
-st.caption("Google Sheets-connected version")
+st.caption("Google Sheets-connected version: one row per specification")
 
 if "mode" not in st.session_state:
     st.session_state["mode"] = "home"
@@ -367,7 +333,6 @@ elif st.session_state["mode"] == "add":
 
             for i, row in enumerate(rows):
                 st.markdown('<div class="field-card">', unsafe_allow_html=True)
-
                 c1, c2, c3 = st.columns([0.30, 0.52, 0.18])
                 c1.markdown(f"**{row['Field']}**")
 
@@ -380,7 +345,6 @@ elif st.session_state["mode"] == "add":
                     f'<div class="source-text">Source text: {", ".join(row["Sources"])}</div>',
                     unsafe_allow_html=True
                 )
-
                 c3.markdown(
                     f'<div class="{confidence_class(row["Confidence"])}">{row["Confidence"]}</div>',
                     unsafe_allow_html=True
@@ -397,7 +361,6 @@ elif st.session_state["mode"] == "add":
                 st.markdown('</div>', unsafe_allow_html=True)
 
             export_df = make_export_row(metadata, edited_values)
-
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine="openpyxl") as writer:
                 export_df.to_excel(writer, index=False, sheet_name="Export")
@@ -445,7 +408,6 @@ elif st.session_state["mode"] == "add":
         if right is not None:
             with right:
                 selected = st.session_state["selected_row"]
-
                 top1, top2 = st.columns([0.7, 0.3])
                 top1.subheader("PDF Source Viewer")
 
