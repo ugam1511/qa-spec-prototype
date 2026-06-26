@@ -4,6 +4,8 @@ import fitz
 import io
 from datetime import date, datetime
 import uuid
+import gspread
+from google.oauth2.service_account import Credentials
 
 st.set_page_config(page_title="SpecStream", layout="wide")
 
@@ -73,6 +75,29 @@ EXPORT_COLUMNS = [
     "KJ", "Kcal", "Fat", "Saturates", "Carbs", "Sugars", "Fibre",
     "Protein", "Salt", "Ingredients table"
 ]
+
+
+def get_google_sheet():
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+
+    creds = Credentials.from_service_account_info(
+        dict(st.secrets["gcp_service_account"]),
+        scopes=scopes
+    )
+
+    client = gspread.authorize(creds)
+    return client.open(st.secrets["google"]["sheet_name"])
+
+
+def append_to_sheet(tab_name, row_dict):
+    sheet = get_google_sheet()
+    worksheet = sheet.worksheet(tab_name)
+    headers = worksheet.row_values(1)
+    row = [row_dict.get(header, "") for header in headers]
+    worksheet.append_row(row, value_input_option="USER_ENTERED")
 
 
 def confidence_class(confidence):
@@ -145,20 +170,6 @@ def mock_extract(pages):
         return [
             {"Field": "Name", "Value": "BRESAOLA INTERA – PUNTA D'ANCA – VACUUM PACKED", "Confidence": "High", "Page": 1, "Sources": ["BRESAOLA INTERA", "PUNTA D’ANCA", "VACUUM PACKED"]},
             {"Field": "Ingredients table", "Value": "Beef, Salt, Dextrose, Natural flavours, Sodium nitrite (E250), Potassium nitrate (E252)", "Confidence": "High", "Page": 1, "Sources": ["Carne bovina", "Beef", "Sale", "Salt", "Destrosio", "Dextrose", "Aromi naturali", "Natural flavours", "E250", "E252"]},
-            {"Field": "Celery", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Sedano", "Celery"]},
-            {"Field": "Cereals", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["SENZA GLUTINE", "GLUTENFREI"]},
-            {"Field": "Crustaceans", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Crostacei", "Crustaceans"]},
-            {"Field": "Eggs", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Uova", "Eggs"]},
-            {"Field": "Fish", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Pesce", "Fish"]},
-            {"Field": "Lupin", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Lupini", "Lupins"]},
-            {"Field": "Milk", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Latte", "Milk"]},
-            {"Field": "Molluscs", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Molluschi", "Shellfish"]},
-            {"Field": "Mustard", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Senape", "Mustard"]},
-            {"Field": "Nuts", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Frutta a guscio", "Nuts"]},
-            {"Field": "Peanuts", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Arachidi", "Peanuts"]},
-            {"Field": "Sesame Seeds", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Semi di sesamo", "Sesame"]},
-            {"Field": "Soya", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Soia", "Soy"]},
-            {"Field": "Sulphur dioxide", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Anidride solforosa", "Sulphites"]},
             {"Field": "Vegetarian", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["Carne bovina", "Beef"]},
             {"Field": "Vegan", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["Carne bovina", "Beef"]},
             {"Field": "Contains GM Protein/DNA", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["OGM", "GMO", "NO"]},
@@ -215,13 +226,56 @@ def make_export_row(metadata, edited_values):
     return pd.DataFrame([row], columns=EXPORT_COLUMNS)
 
 
-def build_save_preview(metadata, edited_values, rows, uploaded_filename):
+def save_to_google_sheets(metadata, edited_values, rows, uploaded_filename):
     spec_id = "SPEC-" + datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + str(uuid.uuid4())[:8].upper()
-
     medium_low_count = sum(1 for row in rows if row["Confidence"] in ["Medium", "Low"])
     extraction_status = "Pending Review" if medium_low_count > 0 else "Reviewed"
 
-    save_summary = {
+    product_record = {
+        "SKU": metadata["sku"],
+        "Product_Name": metadata["name"],
+        "Product_Status": "Active",
+        "Notes": ""
+    }
+
+    supplier_record = {
+        "Supplier_Code": metadata["supplier_code"],
+        "Supplier_Name": metadata["supplier_name"],
+        "Supplier_Status": "Active",
+        "Notes": ""
+    }
+
+    specification_record = {
+        "Spec_ID": spec_id,
+        "SKU": metadata["sku"],
+        "Supplier_Code": metadata["supplier_code"],
+        "Spec_Status": "Current",
+        "Version": "1",
+        "File_Name": uploaded_filename,
+        "Drive_Path": f"Specifications/{metadata['supplier_code']}/{metadata['sku']}.pdf",
+        "Upload_Date": metadata["upload_date"],
+        "Archive_Date": ""
+    }
+
+    append_to_sheet("Products", product_record)
+    append_to_sheet("Suppliers", supplier_record)
+    append_to_sheet("Specifications", specification_record)
+
+    for row in rows:
+        field = row["Field"]
+        extracted_record = {
+            "Spec_ID": spec_id,
+            "Field": field,
+            "Value": row["Value"],
+            "Confidence": row["Confidence"],
+            "Source_Page": row["Page"],
+            "Source_Text": ", ".join(row["Sources"]),
+            "Edited_Value": edited_values.get(field, row["Value"]),
+            "Review_Required": "Yes" if row["Confidence"] in ["Medium", "Low"] else "No"
+        }
+        append_to_sheet("Extracted_Data", extracted_record)
+
+    return {
         "spec_id": spec_id,
         "sku": metadata["sku"],
         "product_name": metadata["name"],
@@ -231,27 +285,24 @@ def build_save_preview(metadata, edited_values, rows, uploaded_filename):
         "product_status": "Active",
         "version": "1",
         "file_name": uploaded_filename,
-        "drive_path": f"Specifications/{metadata['supplier_code']}/{metadata['sku']}.pdf",
+        "drive_path": specification_record["Drive_Path"],
         "upload_date": metadata["upload_date"],
         "extraction_status": extraction_status,
         "fields_extracted": len(rows),
         "fields_requiring_review": medium_low_count
     }
 
-    return save_summary
-
 
 st.title("SpecStream")
-st.caption("Prototype workflow: Add product → upload spec → review extraction → save → export")
+st.caption("Google Sheets-connected version")
 
 if "mode" not in st.session_state:
     st.session_state["mode"] = "home"
 
 if st.session_state["mode"] == "home":
     st.subheader("Home")
-
     search = st.text_input("Search by SKU, product name, supplier code or supplier name")
-    st.info("Search will connect to the SpecStream database in the next stage.")
+    st.info("Search will be connected after save-to-database is verified.")
 
     if st.button("Add new product / specification"):
         st.session_state["mode"] = "add"
@@ -284,8 +335,6 @@ elif st.session_state["mode"] == "add":
             "upload_date": str(date.today())
         }
 
-        st.success("Required product/supplier/specification details complete.")
-
         pdf_bytes = uploaded_file.read()
         pages = extract_pdf_text(pdf_bytes)
         rows = mock_extract(pages)
@@ -306,8 +355,6 @@ elif st.session_state["mode"] == "add":
 
         with left:
             st.subheader("Extracted Results")
-
-            st.markdown("### Product / Supplier Details")
             st.write(f"**SKU:** {metadata['sku']}")
             st.write(f"**Product Name:** {metadata['name']}")
             st.write(f"**Supplier Code:** {metadata['supplier_code']}")
@@ -322,7 +369,6 @@ elif st.session_state["mode"] == "add":
                 st.markdown('<div class="field-card">', unsafe_allow_html=True)
 
                 c1, c2, c3 = st.columns([0.30, 0.52, 0.18])
-
                 c1.markdown(f"**{row['Field']}**")
 
                 if c2.button(str(row["Value"]), key=f"value_click_{i}", use_container_width=True):
@@ -367,19 +413,16 @@ elif st.session_state["mode"] == "add":
             st.subheader("Save Specification")
 
             if st.button("Save record to SpecStream"):
-                save_summary = build_save_preview(
-                    metadata,
-                    edited_values,
-                    rows,
-                    uploaded_file.name
-                )
-
-                st.session_state["saved_summary"] = save_summary
-                st.success("Specification saved successfully in prototype mode.")
+                try:
+                    save_summary = save_to_google_sheets(metadata, edited_values, rows, uploaded_file.name)
+                    st.session_state["saved_summary"] = save_summary
+                    st.success("Specification saved successfully to Google Sheets.")
+                except Exception as e:
+                    st.error("Save failed.")
+                    st.exception(e)
 
             if "saved_summary" in st.session_state:
                 saved = st.session_state["saved_summary"]
-
                 st.markdown(
                     f"""
                     <div class="save-card">
@@ -389,7 +432,6 @@ elif st.session_state["mode"] == "add":
                         <b>Product:</b> {saved["product_name"]}<br>
                         <b>Supplier:</b> {saved["supplier_code"]} - {saved["supplier_name"]}<br>
                         <b>Spec Status:</b> {saved["spec_status"]}<br>
-                        <b>Product Status:</b> {saved["product_status"]}<br>
                         <b>Version:</b> {saved["version"]}<br>
                         <b>Upload Date:</b> {saved["upload_date"]}<br>
                         <b>Extraction Status:</b> {saved["extraction_status"]}<br>
@@ -399,23 +441,6 @@ elif st.session_state["mode"] == "add":
                     """,
                     unsafe_allow_html=True
                 )
-
-                col1, col2 = st.columns(2)
-
-                with col1:
-                    if st.button("Add another specification"):
-                        st.session_state["saved_summary"] = None
-                        st.session_state["pdf_viewer_open"] = False
-                        st.session_state["selected_row"] = None
-                        st.rerun()
-
-                with col2:
-                    if st.button("Back to home"):
-                        st.session_state["mode"] = "home"
-                        st.session_state["saved_summary"] = None
-                        st.session_state["pdf_viewer_open"] = False
-                        st.session_state["selected_row"] = None
-                        st.rerun()
 
         if right is not None:
             with right:
