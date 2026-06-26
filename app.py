@@ -2,9 +2,10 @@ import streamlit as st
 import pandas as pd
 import fitz
 import io
-from datetime import date
+from datetime import date, datetime
+import uuid
 
-st.set_page_config(page_title="QA Spec Manager", layout="wide")
+st.set_page_config(page_title="SpecStream", layout="wide")
 
 st.markdown("""
 <style>
@@ -67,13 +68,11 @@ EXPORT_COLUMNS = [
 
 
 def confidence_class(confidence):
-    if confidence == "High":
-        return "conf-high"
-    if confidence == "Medium":
-        return "conf-medium"
-    if confidence == "Low":
-        return "conf-low"
-    return "conf-high"
+    return {
+        "High": "conf-high",
+        "Medium": "conf-medium",
+        "Low": "conf-low"
+    }.get(confidence, "conf-high")
 
 
 def extract_pdf_text(pdf_bytes):
@@ -125,20 +124,9 @@ def mock_extract(pages):
         return [
             {"Field": "Name", "Value": "Pineapple Paste", "Confidence": "High", "Page": 1, "Sources": ["ANANAS", "PINEAPPLE"]},
             {"Field": "Ingredients table", "Value": "Glucose syrup, Saccharose syrup, Citric acid, Vegetable fibre (Inulin), Flavours, Pectin, E100, E160b", "Confidence": "High", "Page": 1, "Sources": ["GLUCOSE SYRUP", "SACCHAROSE SYRUP", "CITRIC ACID", "VEGETABLE FIBER", "FLAVOURS", "PECTIN", "E100", "E160b"]},
-            {"Field": "Celery", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
-            {"Field": "Cereals", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No gluten-containing ingredients identified"]},
-            {"Field": "Crustaceans", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
-            {"Field": "Eggs", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
-            {"Field": "Fish", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
-            {"Field": "Lupin", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
             {"Field": "Milk", "Value": "May Contain", "Confidence": "High", "Page": 1, "Sources": ["MILK", "MAY CONTAIN TRACES"]},
-            {"Field": "Molluscs", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
-            {"Field": "Mustard", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
             {"Field": "Nuts", "Value": "May Contain", "Confidence": "High", "Page": 1, "Sources": ["SHELLED NUTS"]},
-            {"Field": "Peanuts", "Value": "No", "Confidence": "Medium", "Page": 1, "Sources": ["SHELLED NUTS"]},
-            {"Field": "Sesame Seeds", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
             {"Field": "Soya", "Value": "May Contain", "Confidence": "High", "Page": 1, "Sources": ["SOY"]},
-            {"Field": "Sulphur dioxide", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
             {"Field": "Vegetarian", "Value": "Suitable", "Confidence": "High", "Page": 1, "Sources": ["Composition"]},
             {"Field": "Vegan", "Value": "Suitable", "Confidence": "Medium", "Page": 1, "Sources": ["FLAVOURS"]},
             {"Field": "Contains GM Protein/DNA", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["It doesn't contain OGM ingredients"]},
@@ -206,13 +194,10 @@ def render_highlighted_page(pdf_bytes, page_number, source_terms):
     for term in source_terms:
         if not term:
             continue
-
         rects = page.search_for(term)
-
         if not rects:
             for word in term.split()[:6]:
                 rects.extend(page.search_for(word))
-
         for rect in rects:
             annot = page.add_highlight_annot(rect)
             annot.update()
@@ -235,8 +220,54 @@ def make_export_row(metadata, edited_values):
     return pd.DataFrame([row], columns=EXPORT_COLUMNS)
 
 
-st.title("QA Specification Manager")
-st.caption("Prototype workflow: Add product → upload spec → review extraction → export")
+def build_save_preview(metadata, edited_values, rows, uploaded_filename):
+    spec_id = "SPEC-" + datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + str(uuid.uuid4())[:8].upper()
+
+    product_record = {
+        "SKU": metadata["sku"],
+        "Product_Name": metadata["name"],
+        "Product_Status": "Active",
+        "Notes": ""
+    }
+
+    supplier_record = {
+        "Supplier_Code": metadata["supplier_code"],
+        "Supplier_Name": metadata["supplier_name"],
+        "Supplier_Status": "Active",
+        "Notes": ""
+    }
+
+    specification_record = {
+        "Spec_ID": spec_id,
+        "SKU": metadata["sku"],
+        "Supplier_Code": metadata["supplier_code"],
+        "Spec_Status": "Current",
+        "Version": "1",
+        "File_Name": uploaded_filename,
+        "Drive_Path": f"Specifications/{metadata['supplier_code']}/{metadata['sku']}.pdf",
+        "Upload_Date": metadata["upload_date"],
+        "Archive_Date": ""
+    }
+
+    extracted_records = []
+    for row in rows:
+        field = row["Field"]
+        extracted_records.append({
+            "Spec_ID": spec_id,
+            "Field": field,
+            "Value": row["Value"],
+            "Confidence": row["Confidence"],
+            "Source_Page": row["Page"],
+            "Source_Text": ", ".join(row["Sources"]),
+            "Edited_Value": edited_values.get(field, row["Value"]),
+            "Review_Required": "Yes" if row["Confidence"] in ["Medium", "Low"] else "No"
+        })
+
+    return product_record, supplier_record, specification_record, extracted_records
+
+
+st.title("SpecStream")
+st.caption("Prototype workflow: Add product → upload spec → review extraction → save preview → export")
 
 if "mode" not in st.session_state:
     st.session_state["mode"] = "home"
@@ -245,8 +276,7 @@ if st.session_state["mode"] == "home":
     st.subheader("Home")
 
     search = st.text_input("Search by SKU, product name, supplier code or supplier name")
-
-    st.info("Search is a placeholder for now. Database connection comes next.")
+    st.info("Search will connect to the SpecStream database in the next stage.")
 
     if st.button("Add new product / specification"):
         st.session_state["mode"] = "add"
@@ -268,7 +298,7 @@ elif st.session_state["mode"] == "add":
     required_complete = sku.strip() and product_name.strip() and supplier_code.strip() and supplier_name.strip() and uploaded_file
 
     if not required_complete:
-        st.warning("You must enter SKU, product name, supplier code, supplier name and upload a PDF before extraction/export.")
+        st.warning("Enter SKU, product name, supplier code, supplier name and upload a PDF before extraction/export/save.")
 
     if required_complete:
         metadata = {
@@ -343,7 +373,6 @@ elif st.session_state["mode"] == "add":
                 )
 
                 edited_values[row["Field"]] = edited_value
-
                 st.markdown('</div>', unsafe_allow_html=True)
 
             export_df = make_export_row(metadata, edited_values)
@@ -359,8 +388,55 @@ elif st.session_state["mode"] == "add":
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-            if st.button("Save record (placeholder)"):
-                st.info("Save to Google Sheet/Drive will be added in the next step.")
+            st.markdown("---")
+            st.subheader("Save to SpecStream Database — Prototype Preview")
+
+            if st.button("Save record to prototype database"):
+                product_record, supplier_record, specification_record, extracted_records = build_save_preview(
+                    metadata,
+                    edited_values,
+                    rows,
+                    uploaded_file.name
+                )
+
+                st.session_state["saved_preview"] = {
+                    "product": product_record,
+                    "supplier": supplier_record,
+                    "specification": specification_record,
+                    "extracted": extracted_records
+                }
+
+                st.success("Saved to prototype database preview. Google Sheet/Drive connection comes next.")
+
+            if "saved_preview" in st.session_state:
+                saved = st.session_state["saved_preview"]
+
+                st.markdown("### Product Record")
+                st.dataframe(pd.DataFrame([saved["product"]]), use_container_width=True)
+
+                st.markdown("### Supplier Record")
+                st.dataframe(pd.DataFrame([saved["supplier"]]), use_container_width=True)
+
+                st.markdown("### Specification Record")
+                st.dataframe(pd.DataFrame([saved["specification"]]), use_container_width=True)
+
+                st.markdown("### Extracted Data Records")
+                extracted_df = pd.DataFrame(saved["extracted"])
+                st.dataframe(extracted_df, use_container_width=True)
+
+                backup_output = io.BytesIO()
+                with pd.ExcelWriter(backup_output, engine="openpyxl") as writer:
+                    pd.DataFrame([saved["product"]]).to_excel(writer, index=False, sheet_name="Product")
+                    pd.DataFrame([saved["supplier"]]).to_excel(writer, index=False, sheet_name="Supplier")
+                    pd.DataFrame([saved["specification"]]).to_excel(writer, index=False, sheet_name="Specification")
+                    extracted_df.to_excel(writer, index=False, sheet_name="Extracted_Data")
+
+                st.download_button(
+                    "Download Prototype Save Backup",
+                    backup_output.getvalue(),
+                    file_name=f"{metadata['sku']}_specstream_save_backup.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
 
         if right is not None:
             with right:
