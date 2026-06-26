@@ -51,23 +51,11 @@ st.markdown("""
     text-align: center;
     font-weight: bold;
 }
-
-/* Makes right-side PDF column behave like fixed split screen */
-div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(2) {
-    position: sticky;
-    top: 0.5rem;
-    align-self: flex-start;
-    height: 96vh;
-    overflow-y: auto;
-    border-left: 2px solid #d0d7de;
-    padding-left: 1rem;
-    background: white;
-}
 </style>
 """, unsafe_allow_html=True)
 
 st.title("QA Specification Extraction Prototype")
-st.caption("Fixed split-screen PDF viewer")
+st.caption("Stable split-view version with Cumin, Pineapple and Bresaola mock extraction")
 
 uploaded_file = st.file_uploader("Upload a PDF specification", type=["pdf"])
 
@@ -106,9 +94,16 @@ def mock_extract(pages):
             {"Field": "Saturates_g_100g", "Value": "1.5", "Confidence": "High", "Page": 3, "Sources": ["Saturates (g) 1.5"]},
             {"Field": "Salt_g_100g", "Value": "0.42", "Confidence": "High", "Page": 3, "Sources": ["Salt (g) 0.42"]},
             {"Field": "Origin_Summary", "Value": "India – processed in UK", "Confidence": "High", "Page": 1, "Sources": ["Origin India", "Processed in UK"]},
+            {"Field": "Vegan", "Value": "Suitable", "Confidence": "High", "Page": 3, "Sources": ["Vegans YES"]},
+            {"Field": "Vegetarian", "Value": "Suitable", "Confidence": "High", "Page": 3, "Sources": ["Vegetarians YES"]},
+            {"Field": "Coeliac", "Value": "Suitable (claimed)", "Confidence": "High", "Page": 3, "Sources": ["Coeliacs YES"]},
+            {"Field": "Lactose_Free", "Value": "Suitable", "Confidence": "Medium", "Page": 4, "Sources": ["Milk and dairy products", "Present in Product No"]},
             {"Field": "Halal", "Value": "Suitable (not certified)", "Confidence": "High", "Page": 3, "Sources": ["Halal", "YES", "Not Certified"]},
             {"Field": "Kosher", "Value": "Suitable (not certified)", "Confidence": "High", "Page": 3, "Sources": ["Kosher", "YES", "Not Certified"]},
+            {"Field": "Organic", "Value": "No", "Confidence": "High", "Page": 5, "Sources": ["No organic claim found"]},
+            {"Field": "Palm_Oil_Free", "Value": "Yes", "Confidence": "High", "Page": 1, "Sources": ["Ingredients declaration Cumin"]},
             {"Field": "GMO_Free", "Value": "Yes", "Confidence": "High", "Page": 5, "Sources": ["genetically modified varieties are known", "This product needs declaration as GMO"]},
+            {"Field": "Review_Required", "Value": "Yes", "Confidence": "Medium", "Page": 4, "Sources": ["Customer to risk assess"]}
         ]
 
     if "ananas" in joined or "pineapple" in joined:
@@ -116,6 +111,7 @@ def mock_extract(pages):
             {"Field": "Product_Name", "Value": "Pineapple Paste", "Confidence": "High", "Page": 1, "Sources": ["ANANAS", "PINEAPPLE"]},
             {"Field": "Product_Description", "Value": "Semifinished product in paste for gelato production. Not intended for direct consumption. Made in Italy.", "Confidence": "High", "Page": 1, "Sources": ["Semifinished product in paste for Gelato production", "not allowed direct consumption", "Made in Italy"]},
             {"Field": "Ingredients_Full_Text", "Value": "Glucose syrup, Saccharose syrup, Citric acid, Vegetable fibre (Inulin), Flavours, Pectin, E100, E160b", "Confidence": "High", "Page": 1, "Sources": ["GLUCOSE SYRUP", "SACCHAROSE SYRUP", "CITRIC ACID", "VEGETABLE FIBER", "FLAVOURS", "PECTIN", "E100", "E160b"]},
+            {"Field": "Ingredients_With_Percentages", "Value": "No percentages declared", "Confidence": "High", "Page": 1, "Sources": ["Composition", "GLUCOSE SYRUP"]},
             {"Field": "Allergens_Present", "Value": "None declared", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
             {"Field": "Allergens_May_Contain", "Value": "Tree Nuts, Soy, Milk", "Confidence": "High", "Page": 1, "Sources": ["SHELLED NUTS", "SOY", "MILK"]},
             {"Field": "Energy_kcal_100g", "Value": "277.36", "Confidence": "High", "Page": 1, "Sources": ["277,36 Kcal"]},
@@ -128,12 +124,19 @@ def mock_extract(pages):
             {"Field": "Fibre_g_100g", "Value": "0.38", "Confidence": "High", "Page": 1, "Sources": ["FIBER 0,38"]},
             {"Field": "Salt_g_100g", "Value": "0", "Confidence": "High", "Page": 1, "Sources": ["SALT 0 g"]},
             {"Field": "Origin_Summary", "Value": "Italy", "Confidence": "High", "Page": 1, "Sources": ["Made in Italy", "Prodotto in Italia"]},
+            {"Field": "Vegan", "Value": "Suitable", "Confidence": "Medium", "Page": 1, "Sources": ["GLUCOSE SYRUP", "FLAVOURS"]},
+            {"Field": "Vegetarian", "Value": "Suitable", "Confidence": "High", "Page": 1, "Sources": ["Composition", "GLUCOSE SYRUP"]},
+            {"Field": "Coeliac", "Value": "Suitable", "Confidence": "High", "Page": 1, "Sources": ["No gluten-containing ingredients identified"]},
             {"Field": "Lactose_Free", "Value": "Review Required", "Confidence": "Medium", "Page": 1, "Sources": ["MILK", "MAY CONTAIN TRACES"]},
+            {"Field": "Halal", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No halal statement found"]},
+            {"Field": "Kosher", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No kosher statement found"]},
+            {"Field": "Organic", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No organic claim found"]},
             {"Field": "Palm_Oil_Free", "Value": "Review Required", "Confidence": "Medium", "Page": 1, "Sources": ["FLAVOURS"]},
             {"Field": "GMO_Free", "Value": "Yes", "Confidence": "High", "Page": 1, "Sources": ["It doesn't contain OGM ingredients"]},
+            {"Field": "Review_Required", "Value": "Yes", "Confidence": "Medium", "Page": 1, "Sources": ["MILK", "FLAVOURS"]}
         ]
 
-  if "bresaola" in joined or "punta d'anca" in joined or "punta d’anca" in joined:
+    if "bresaola" in joined or "punta d'anca" in joined or "punta d’anca" in joined:
         return [
             {"Field": "Product_Name", "Value": "BRESAOLA INTERA – PUNTA D'ANCA – VACUUM PACKED", "Confidence": "High", "Page": 1, "Sources": ["BRESAOLA INTERA", "PUNTA D’ANCA", "VACUUM PACKED"]},
             {"Field": "Product_Description", "Value": "Postero-medial portion of bovine thigh muscle including internal rectus muscle and semimembranosus muscle.", "Confidence": "High", "Page": 1, "Sources": ["Postero-medial portion of bovine thigh muscle", "internal rectus muscle", "semimembranosus muscle"]},
@@ -165,8 +168,8 @@ def mock_extract(pages):
             {"Field": "GMO_Free", "Value": "Yes", "Confidence": "High", "Page": 3, "Sources": ["OGM", "GMO", "NO"]},
             {"Field": "Review_Required", "Value": "Yes", "Confidence": "Medium", "Page": 3, "Sources": ["Allergen matrix blank", "Natural flavours", "cross contamination"]}
         ]
-        
-    return [{"Field": "Product_Name", "Value": "Not extracted", "Confidence": "Low", "Page": 1, "Sources": [""]}]
+
+    return [{"Field": "Product_Name", "Value": "Not extracted", "Confidence": "Low", "Page": 1, "Sources": ["Unknown document format in mock mode"]}]
 
 
 def render_highlighted_page(pdf_bytes, page_number, source_terms):
