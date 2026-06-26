@@ -53,6 +53,14 @@ st.markdown("""
     text-align: center;
     font-weight: bold;
 }
+.save-card {
+    border: 1px solid #badbcc;
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border-radius: 12px;
+    padding: 18px;
+    margin-top: 18px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -87,20 +95,7 @@ def mock_extract(pages):
         return [
             {"Field": "Name", "Value": "GROUND CUMIN", "Confidence": "High", "Page": 1, "Sources": ["Product Name GROUND CUMIN"]},
             {"Field": "Ingredients table", "Value": "Cumin", "Confidence": "High", "Page": 1, "Sources": ["Ingredients declaration Cumin"]},
-            {"Field": "Celery", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Allergens in product None"]},
-            {"Field": "Cereals", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Cereals containing gluten", "Present in Product No"]},
-            {"Field": "Crustaceans", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Crustaceans", "Present in Product No"]},
-            {"Field": "Eggs", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Egg", "Present in Product No"]},
-            {"Field": "Fish", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Fish", "Present in Product No"]},
-            {"Field": "Lupin", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Lupin", "Present in Product No"]},
-            {"Field": "Milk", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Milk and dairy products", "Present in Product No"]},
-            {"Field": "Molluscs", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Molluscs", "Present in Product No"]},
-            {"Field": "Mustard", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Mustard", "Present in Product No"]},
-            {"Field": "Nuts", "Value": "No", "Confidence": "Medium", "Page": 5, "Sources": ["Nut & Peanut Statement"]},
             {"Field": "Peanuts", "Value": "May Contain", "Confidence": "Medium", "Page": 4, "Sources": ["Peanuts", "Possible airborne cross contamination"]},
-            {"Field": "Sesame Seeds", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Sesame Seeds", "Present in Product No"]},
-            {"Field": "Soya", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Soybeans", "Present in Product No"]},
-            {"Field": "Sulphur dioxide", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Sulphur dioxide", "Present in Product No"]},
             {"Field": "Vegetarian", "Value": "Suitable", "Confidence": "High", "Page": 3, "Sources": ["Vegetarians YES"]},
             {"Field": "Vegan", "Value": "Suitable", "Confidence": "High", "Page": 3, "Sources": ["Vegans YES"]},
             {"Field": "Contains GM Protein/DNA", "Value": "No", "Confidence": "High", "Page": 5, "Sources": ["This product needs declaration as GMO No"]},
@@ -223,51 +218,31 @@ def make_export_row(metadata, edited_values):
 def build_save_preview(metadata, edited_values, rows, uploaded_filename):
     spec_id = "SPEC-" + datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + str(uuid.uuid4())[:8].upper()
 
-    product_record = {
-        "SKU": metadata["sku"],
-        "Product_Name": metadata["name"],
-        "Product_Status": "Active",
-        "Notes": ""
+    medium_low_count = sum(1 for row in rows if row["Confidence"] in ["Medium", "Low"])
+    extraction_status = "Pending Review" if medium_low_count > 0 else "Reviewed"
+
+    save_summary = {
+        "spec_id": spec_id,
+        "sku": metadata["sku"],
+        "product_name": metadata["name"],
+        "supplier_code": metadata["supplier_code"],
+        "supplier_name": metadata["supplier_name"],
+        "spec_status": "Current",
+        "product_status": "Active",
+        "version": "1",
+        "file_name": uploaded_filename,
+        "drive_path": f"Specifications/{metadata['supplier_code']}/{metadata['sku']}.pdf",
+        "upload_date": metadata["upload_date"],
+        "extraction_status": extraction_status,
+        "fields_extracted": len(rows),
+        "fields_requiring_review": medium_low_count
     }
 
-    supplier_record = {
-        "Supplier_Code": metadata["supplier_code"],
-        "Supplier_Name": metadata["supplier_name"],
-        "Supplier_Status": "Active",
-        "Notes": ""
-    }
-
-    specification_record = {
-        "Spec_ID": spec_id,
-        "SKU": metadata["sku"],
-        "Supplier_Code": metadata["supplier_code"],
-        "Spec_Status": "Current",
-        "Version": "1",
-        "File_Name": uploaded_filename,
-        "Drive_Path": f"Specifications/{metadata['supplier_code']}/{metadata['sku']}.pdf",
-        "Upload_Date": metadata["upload_date"],
-        "Archive_Date": ""
-    }
-
-    extracted_records = []
-    for row in rows:
-        field = row["Field"]
-        extracted_records.append({
-            "Spec_ID": spec_id,
-            "Field": field,
-            "Value": row["Value"],
-            "Confidence": row["Confidence"],
-            "Source_Page": row["Page"],
-            "Source_Text": ", ".join(row["Sources"]),
-            "Edited_Value": edited_values.get(field, row["Value"]),
-            "Review_Required": "Yes" if row["Confidence"] in ["Medium", "Low"] else "No"
-        })
-
-    return product_record, supplier_record, specification_record, extracted_records
+    return save_summary
 
 
 st.title("SpecStream")
-st.caption("Prototype workflow: Add product → upload spec → review extraction → save preview → export")
+st.caption("Prototype workflow: Add product → upload spec → review extraction → save → export")
 
 if "mode" not in st.session_state:
     st.session_state["mode"] = "home"
@@ -389,54 +364,58 @@ elif st.session_state["mode"] == "add":
             )
 
             st.markdown("---")
-            st.subheader("Save to SpecStream Database — Prototype Preview")
+            st.subheader("Save Specification")
 
-            if st.button("Save record to prototype database"):
-                product_record, supplier_record, specification_record, extracted_records = build_save_preview(
+            if st.button("Save record to SpecStream"):
+                save_summary = build_save_preview(
                     metadata,
                     edited_values,
                     rows,
                     uploaded_file.name
                 )
 
-                st.session_state["saved_preview"] = {
-                    "product": product_record,
-                    "supplier": supplier_record,
-                    "specification": specification_record,
-                    "extracted": extracted_records
-                }
+                st.session_state["saved_summary"] = save_summary
+                st.success("Specification saved successfully in prototype mode.")
 
-                st.success("Saved to prototype database preview. Google Sheet/Drive connection comes next.")
+            if "saved_summary" in st.session_state:
+                saved = st.session_state["saved_summary"]
 
-            if "saved_preview" in st.session_state:
-                saved = st.session_state["saved_preview"]
-
-                st.markdown("### Product Record")
-                st.dataframe(pd.DataFrame([saved["product"]]), use_container_width=True)
-
-                st.markdown("### Supplier Record")
-                st.dataframe(pd.DataFrame([saved["supplier"]]), use_container_width=True)
-
-                st.markdown("### Specification Record")
-                st.dataframe(pd.DataFrame([saved["specification"]]), use_container_width=True)
-
-                st.markdown("### Extracted Data Records")
-                extracted_df = pd.DataFrame(saved["extracted"])
-                st.dataframe(extracted_df, use_container_width=True)
-
-                backup_output = io.BytesIO()
-                with pd.ExcelWriter(backup_output, engine="openpyxl") as writer:
-                    pd.DataFrame([saved["product"]]).to_excel(writer, index=False, sheet_name="Product")
-                    pd.DataFrame([saved["supplier"]]).to_excel(writer, index=False, sheet_name="Supplier")
-                    pd.DataFrame([saved["specification"]]).to_excel(writer, index=False, sheet_name="Specification")
-                    extracted_df.to_excel(writer, index=False, sheet_name="Extracted_Data")
-
-                st.download_button(
-                    "Download Prototype Save Backup",
-                    backup_output.getvalue(),
-                    file_name=f"{metadata['sku']}_specstream_save_backup.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                st.markdown(
+                    f"""
+                    <div class="save-card">
+                        <h3>Saved Successfully</h3>
+                        <b>Spec ID:</b> {saved["spec_id"]}<br>
+                        <b>SKU:</b> {saved["sku"]}<br>
+                        <b>Product:</b> {saved["product_name"]}<br>
+                        <b>Supplier:</b> {saved["supplier_code"]} - {saved["supplier_name"]}<br>
+                        <b>Spec Status:</b> {saved["spec_status"]}<br>
+                        <b>Product Status:</b> {saved["product_status"]}<br>
+                        <b>Version:</b> {saved["version"]}<br>
+                        <b>Upload Date:</b> {saved["upload_date"]}<br>
+                        <b>Extraction Status:</b> {saved["extraction_status"]}<br>
+                        <b>Fields Extracted:</b> {saved["fields_extracted"]}<br>
+                        <b>Fields Requiring Review:</b> {saved["fields_requiring_review"]}<br>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
                 )
+
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    if st.button("Add another specification"):
+                        st.session_state["saved_summary"] = None
+                        st.session_state["pdf_viewer_open"] = False
+                        st.session_state["selected_row"] = None
+                        st.rerun()
+
+                with col2:
+                    if st.button("Back to home"):
+                        st.session_state["mode"] = "home"
+                        st.session_state["saved_summary"] = None
+                        st.session_state["pdf_viewer_open"] = False
+                        st.session_state["selected_row"] = None
+                        st.rerun()
 
         if right is not None:
             with right:
