@@ -31,6 +31,15 @@ EXPORT_COLUMNS = [
     "Protein", "Salt", "Ingredients table"
 ]
 
+DISPLAY_FIELDS = [col for col in EXPORT_COLUMNS if col not in ["SKU", "Supplier code"]]
+
+ALLERGEN_FIELDS = [
+    "Celery", "Cereals", "Crustaceans", "Eggs", "Fish", "Lupin", "Milk",
+    "Molluscs", "Mustard", "Nuts", "Peanuts", "Sesame Seeds", "Soya",
+    "Sulphur dioxide"
+]
+
+
 def get_google_sheet():
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
@@ -43,6 +52,7 @@ def get_google_sheet():
     client = gspread.authorize(creds)
     return client.open(st.secrets["google"]["sheet_name"])
 
+
 def append_to_sheet(tab_name, row_dict, sheet=None):
     if sheet is None:
         sheet = get_google_sheet()
@@ -51,90 +61,177 @@ def append_to_sheet(tab_name, row_dict, sheet=None):
     row = [row_dict.get(header, "") for header in headers]
     worksheet.append_row(row, value_input_option="USER_ENTERED")
 
+
 def confidence_class(confidence):
     return {"High": "conf-high", "Medium": "conf-medium", "Low": "conf-low"}.get(confidence, "conf-high")
+
 
 def extract_pdf_text(pdf_bytes):
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     return [{"page": i + 1, "text": page.get_text()} for i, page in enumerate(doc)]
 
+
+def row(field, value, confidence="High", page=1, sources=None):
+    return {
+        "Field": field,
+        "Value": value,
+        "Confidence": confidence,
+        "Page": page,
+        "Sources": sources or []
+    }
+
+
+def normalise_rows(raw_rows):
+    """
+    Makes sure every export/display field exists.
+    Missing allergen fields default to No.
+    Missing other fields default to blank.
+    """
+    by_field = {r["Field"]: r for r in raw_rows}
+    final_rows = []
+
+    for field in DISPLAY_FIELDS:
+        if field in by_field:
+            final_rows.append(by_field[field])
+        else:
+            if field in ALLERGEN_FIELDS:
+                final_rows.append(row(field, "No", "Medium", 1, ["No evidence extracted in mock mode"]))
+            else:
+                final_rows.append(row(field, "", "Low", 1, ["Field not extracted in mock mode"]))
+
+    return final_rows
+
+
 def mock_extract(pages):
     joined = "\n".join(p["text"] for p in pages).lower()
 
     if "ground cumin" in joined:
-        return [
-            {"Field": "Name", "Value": "GROUND CUMIN", "Confidence": "High", "Page": 1, "Sources": ["Product Name GROUND CUMIN"]},
-            {"Field": "Ingredients table", "Value": "Cumin", "Confidence": "High", "Page": 1, "Sources": ["Ingredients declaration Cumin"]},
-            {"Field": "Peanuts", "Value": "May Contain", "Confidence": "Medium", "Page": 4, "Sources": ["Peanuts", "Possible airborne cross contamination"]},
-            {"Field": "Vegetarian", "Value": "Suitable", "Confidence": "High", "Page": 3, "Sources": ["Vegetarians YES"]},
-            {"Field": "Vegan", "Value": "Suitable", "Confidence": "High", "Page": 3, "Sources": ["Vegans YES"]},
-            {"Field": "Contains GM Protein/DNA", "Value": "No", "Confidence": "High", "Page": 5, "Sources": ["This product needs declaration as GMO No"]},
-            {"Field": "Palm oil", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["Ingredients declaration Cumin"]},
-            {"Field": "Coeliacs", "Value": "Suitable (claimed)", "Confidence": "High", "Page": 3, "Sources": ["Coeliacs YES"]},
-            {"Field": "Halal", "Value": "Suitable (not certified)", "Confidence": "High", "Page": 3, "Sources": ["Halal YES", "Not Certified"]},
-            {"Field": "Kosher", "Value": "Suitable (not certified)", "Confidence": "High", "Page": 3, "Sources": ["Kosher YES", "Not Certified"]},
-            {"Field": "Organic", "Value": "No", "Confidence": "High", "Page": 5, "Sources": ["No organic claim found"]},
-            {"Field": "KJ", "Value": "1783", "Confidence": "High", "Page": 3, "Sources": ["kj 1783"]},
-            {"Field": "Kcal", "Value": "427", "Confidence": "High", "Page": 3, "Sources": ["kcal 427"]},
-            {"Field": "Fat", "Value": "22.3", "Confidence": "High", "Page": 3, "Sources": ["Fat (g) 22.3"]},
-            {"Field": "Saturates", "Value": "1.5", "Confidence": "High", "Page": 3, "Sources": ["Saturates (g) 1.5"]},
-            {"Field": "Carbs", "Value": "33.7", "Confidence": "High", "Page": 3, "Sources": ["Carbohydrate (g) 33.7"]},
-            {"Field": "Sugars", "Value": "2.3", "Confidence": "High", "Page": 3, "Sources": ["Sugar (g) 2.3"]},
-            {"Field": "Fibre", "Value": "Not stated", "Confidence": "Medium", "Page": 3, "Sources": ["Nutrition information per 100g"]},
-            {"Field": "Protein", "Value": "17.8", "Confidence": "High", "Page": 3, "Sources": ["Protein (g) 17.8"]},
-            {"Field": "Salt", "Value": "0.42", "Confidence": "High", "Page": 3, "Sources": ["Salt (g) 0.42"]},
+        raw = [
+            row("Name", "GROUND CUMIN", "High", 1, ["Product Name GROUND CUMIN"]),
+            row("Ingredients table", "Cumin", "High", 1, ["Ingredients declaration Cumin"]),
+
+            row("Celery", "No", "High", 4, ["Celery", "Present in Product No"]),
+            row("Cereals", "No", "High", 4, ["Cereals containing gluten", "Present in Product No"]),
+            row("Crustaceans", "No", "High", 4, ["Crustaceans", "Present in Product No"]),
+            row("Eggs", "No", "High", 4, ["Egg", "Present in Product No"]),
+            row("Fish", "No", "High", 4, ["Fish", "Present in Product No"]),
+            row("Lupin", "No", "High", 4, ["Lupin", "Present in Product No"]),
+            row("Milk", "No", "High", 4, ["Milk and dairy products", "Present in Product No"]),
+            row("Molluscs", "No", "High", 4, ["Molluscs", "Present in Product No"]),
+            row("Mustard", "No", "High", 4, ["Mustard", "Present in Product No"]),
+            row("Nuts", "No", "Medium", 5, ["Nut & Peanut Statement"]),
+            row("Peanuts", "May Contain", "Medium", 4, ["Peanuts", "Possible airborne cross contamination"]),
+            row("Sesame Seeds", "No", "High", 4, ["Sesame Seeds", "Present in Product No"]),
+            row("Soya", "No", "High", 4, ["Soybeans", "Present in Product No"]),
+            row("Sulphur dioxide", "No", "High", 4, ["Sulphur dioxide", "Present in Product No"]),
+
+            row("Vegetarian", "Suitable", "High", 3, ["Vegetarians YES"]),
+            row("Vegan", "Suitable", "High", 3, ["Vegans YES"]),
+            row("Contains GM Protein/DNA", "No", "High", 5, ["This product needs declaration as GMO No"]),
+            row("Palm oil", "No", "High", 1, ["Ingredients declaration Cumin"]),
+            row("Coeliacs", "Suitable (claimed)", "High", 3, ["Coeliacs YES"]),
+            row("Halal", "Suitable (not certified)", "High", 3, ["Halal YES", "Not Certified"]),
+            row("Kosher", "Suitable (not certified)", "High", 3, ["Kosher YES", "Not Certified"]),
+            row("Organic", "No", "High", 5, ["No organic claim found"]),
+
+            row("KJ", "1783", "High", 3, ["kj 1783"]),
+            row("Kcal", "427", "High", 3, ["kcal 427"]),
+            row("Fat", "22.3", "High", 3, ["Fat (g) 22.3"]),
+            row("Saturates", "1.5", "High", 3, ["Saturates (g) 1.5"]),
+            row("Carbs", "33.7", "High", 3, ["Carbohydrate (g) 33.7"]),
+            row("Sugars", "2.3", "High", 3, ["Sugar (g) 2.3"]),
+            row("Fibre", "Not stated", "Medium", 3, ["Nutrition information per 100g"]),
+            row("Protein", "17.8", "High", 3, ["Protein (g) 17.8"]),
+            row("Salt", "0.42", "High", 3, ["Salt (g) 0.42"]),
         ]
+        return normalise_rows(raw)
 
     if "ananas" in joined or "pineapple" in joined:
-        return [
-            {"Field": "Name", "Value": "Pineapple Paste", "Confidence": "High", "Page": 1, "Sources": ["ANANAS", "PINEAPPLE"]},
-            {"Field": "Ingredients table", "Value": "Glucose syrup, Saccharose syrup, Citric acid, Vegetable fibre (Inulin), Flavours, Pectin, E100, E160b", "Confidence": "High", "Page": 1, "Sources": ["GLUCOSE SYRUP", "SACCHAROSE SYRUP", "CITRIC ACID", "VEGETABLE FIBER", "FLAVOURS", "PECTIN", "E100", "E160b"]},
-            {"Field": "Milk", "Value": "May Contain", "Confidence": "High", "Page": 1, "Sources": ["MILK", "MAY CONTAIN TRACES"]},
-            {"Field": "Nuts", "Value": "May Contain", "Confidence": "High", "Page": 1, "Sources": ["SHELLED NUTS"]},
-            {"Field": "Soya", "Value": "May Contain", "Confidence": "High", "Page": 1, "Sources": ["SOY"]},
-            {"Field": "Vegetarian", "Value": "Suitable", "Confidence": "High", "Page": 1, "Sources": ["Composition"]},
-            {"Field": "Vegan", "Value": "Suitable", "Confidence": "Medium", "Page": 1, "Sources": ["FLAVOURS"]},
-            {"Field": "Contains GM Protein/DNA", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["It doesn't contain OGM ingredients"]},
-            {"Field": "Palm oil", "Value": "Review Required", "Confidence": "Medium", "Page": 1, "Sources": ["FLAVOURS"]},
-            {"Field": "Coeliacs", "Value": "Suitable", "Confidence": "High", "Page": 1, "Sources": ["No gluten-containing ingredients identified"]},
-            {"Field": "Halal", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No halal statement found"]},
-            {"Field": "Kosher", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No kosher statement found"]},
-            {"Field": "Organic", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No organic claim found"]},
-            {"Field": "KJ", "Value": "1160.11", "Confidence": "High", "Page": 1, "Sources": ["1160,11 Kj"]},
-            {"Field": "Kcal", "Value": "277.36", "Confidence": "High", "Page": 1, "Sources": ["277,36 Kcal"]},
-            {"Field": "Fat", "Value": "0.39", "Confidence": "High", "Page": 1, "Sources": ["FATS 0,39"]},
-            {"Field": "Saturates", "Value": "0.04", "Confidence": "High", "Page": 1, "Sources": ["saturated 0,04"]},
-            {"Field": "Carbs", "Value": "67.79", "Confidence": "High", "Page": 1, "Sources": ["CARBOHYDRATES 67,79"]},
-            {"Field": "Sugars", "Value": "67.51", "Confidence": "High", "Page": 1, "Sources": ["sugars 67,51"]},
-            {"Field": "Fibre", "Value": "0.38", "Confidence": "High", "Page": 1, "Sources": ["FIBER 0,38"]},
-            {"Field": "Protein", "Value": "0.76", "Confidence": "High", "Page": 1, "Sources": ["PROTEINS 0,76"]},
-            {"Field": "Salt", "Value": "0", "Confidence": "High", "Page": 1, "Sources": ["SALT 0 g"]},
+        raw = [
+            row("Name", "Pineapple Paste", "High", 1, ["ANANAS", "PINEAPPLE"]),
+            row("Ingredients table", "Glucose syrup, Saccharose syrup, Citric acid, Vegetable fibre (Inulin), Flavours, Pectin, E100, E160b", "High", 1, ["GLUCOSE SYRUP", "SACCHAROSE SYRUP", "CITRIC ACID", "VEGETABLE FIBER", "FLAVOURS", "PECTIN", "E100", "E160b"]),
+
+            row("Celery", "No", "High", 1, ["MAY CONTAIN TRACES"]),
+            row("Cereals", "No", "High", 1, ["No gluten-containing ingredients identified"]),
+            row("Crustaceans", "No", "High", 1, ["MAY CONTAIN TRACES"]),
+            row("Eggs", "No", "High", 1, ["MAY CONTAIN TRACES"]),
+            row("Fish", "No", "High", 1, ["MAY CONTAIN TRACES"]),
+            row("Lupin", "No", "High", 1, ["MAY CONTAIN TRACES"]),
+            row("Milk", "May Contain", "High", 1, ["MILK", "MAY CONTAIN TRACES"]),
+            row("Molluscs", "No", "High", 1, ["MAY CONTAIN TRACES"]),
+            row("Mustard", "No", "High", 1, ["MAY CONTAIN TRACES"]),
+            row("Nuts", "May Contain", "High", 1, ["SHELLED NUTS"]),
+            row("Peanuts", "No", "Medium", 1, ["SHELLED NUTS"]),
+            row("Sesame Seeds", "No", "High", 1, ["MAY CONTAIN TRACES"]),
+            row("Soya", "May Contain", "High", 1, ["SOY"]),
+            row("Sulphur dioxide", "No", "High", 1, ["MAY CONTAIN TRACES"]),
+
+            row("Vegetarian", "Suitable", "High", 1, ["Composition"]),
+            row("Vegan", "Suitable", "Medium", 1, ["FLAVOURS"]),
+            row("Contains GM Protein/DNA", "No", "High", 1, ["It doesn't contain OGM ingredients"]),
+            row("Palm oil", "Review Required", "Medium", 1, ["FLAVOURS"]),
+            row("Coeliacs", "Suitable", "High", 1, ["No gluten-containing ingredients identified"]),
+            row("Halal", "No", "High", 1, ["No halal statement found"]),
+            row("Kosher", "No", "High", 1, ["No kosher statement found"]),
+            row("Organic", "No", "High", 1, ["No organic claim found"]),
+
+            row("KJ", "1160.11", "High", 1, ["1160,11 Kj"]),
+            row("Kcal", "277.36", "High", 1, ["277,36 Kcal"]),
+            row("Fat", "0.39", "High", 1, ["FATS 0,39"]),
+            row("Saturates", "0.04", "High", 1, ["saturated 0,04"]),
+            row("Carbs", "67.79", "High", 1, ["CARBOHYDRATES 67,79"]),
+            row("Sugars", "67.51", "High", 1, ["sugars 67,51"]),
+            row("Fibre", "0.38", "High", 1, ["FIBER 0,38"]),
+            row("Protein", "0.76", "High", 1, ["PROTEINS 0,76"]),
+            row("Salt", "0", "High", 1, ["SALT 0 g"]),
         ]
+        return normalise_rows(raw)
 
     if "bresaola" in joined or "punta d'anca" in joined or "punta d’anca" in joined:
-        return [
-            {"Field": "Name", "Value": "BRESAOLA INTERA – PUNTA D'ANCA – VACUUM PACKED", "Confidence": "High", "Page": 1, "Sources": ["BRESAOLA INTERA", "PUNTA D’ANCA", "VACUUM PACKED"]},
-            {"Field": "Ingredients table", "Value": "Beef, Salt, Dextrose, Natural flavours, Sodium nitrite (E250), Potassium nitrate (E252)", "Confidence": "High", "Page": 1, "Sources": ["Carne bovina", "Beef", "Sale", "Salt", "Destrosio", "Dextrose", "Aromi naturali", "Natural flavours", "E250", "E252"]},
-            {"Field": "Vegetarian", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["Carne bovina", "Beef"]},
-            {"Field": "Vegan", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["Carne bovina", "Beef"]},
-            {"Field": "Contains GM Protein/DNA", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["OGM", "GMO", "NO"]},
-            {"Field": "Palm oil", "Value": "Review Required", "Confidence": "Medium", "Page": 1, "Sources": ["Aromi naturali", "Natural flavours"]},
-            {"Field": "Coeliacs", "Value": "Suitable (claimed)", "Confidence": "High", "Page": 4, "Sources": ["SENZA GLUTINE", "GLUTENFREI"]},
-            {"Field": "Halal", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["if raw material has been butchered with Halal rite", "Lot code encoding"]},
-            {"Field": "Kosher", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No kosher statement found"]},
-            {"Field": "Organic", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No organic claim found"]},
-            {"Field": "KJ", "Value": "665", "Confidence": "High", "Page": 2, "Sources": ["Energy value", "KJ", "665"]},
-            {"Field": "Kcal", "Value": "159", "Confidence": "High", "Page": 2, "Sources": ["Energy value", "Kcal", "159"]},
-            {"Field": "Fat", "Value": "4", "Confidence": "High", "Page": 2, "Sources": ["Grassi", "Fat", "4"]},
-            {"Field": "Saturates", "Value": "1", "Confidence": "High", "Page": 2, "Sources": ["saturated fatty acids", "1"]},
-            {"Field": "Carbs", "Value": "<1", "Confidence": "High", "Page": 2, "Sources": ["Carbohydrates", "< 1"]},
-            {"Field": "Sugars", "Value": "<1", "Confidence": "High", "Page": 2, "Sources": ["of which sugars", "< 1"]},
-            {"Field": "Fibre", "Value": "0", "Confidence": "High", "Page": 2, "Sources": ["Fibre", "Fibers", "0"]},
-            {"Field": "Protein", "Value": "30", "Confidence": "High", "Page": 2, "Sources": ["Proteins", "30"]},
-            {"Field": "Salt", "Value": "3.7", "Confidence": "High", "Page": 2, "Sources": ["Sale", "Salt", "3,7"]},
-        ]
+        raw = [
+            row("Name", "BRESAOLA INTERA – PUNTA D'ANCA – VACUUM PACKED", "High", 1, ["BRESAOLA INTERA", "PUNTA D’ANCA", "VACUUM PACKED"]),
+            row("Ingredients table", "Beef, Salt, Dextrose, Natural flavours, Sodium nitrite (E250), Potassium nitrate (E252)", "High", 1, ["Carne bovina", "Beef", "Sale", "Salt", "Destrosio", "Dextrose", "Aromi naturali", "Natural flavours", "E250", "E252"]),
 
-    return [{"Field": "Name", "Value": "Not extracted", "Confidence": "Low", "Page": 1, "Sources": ["Unknown document format in mock mode"]}]
+            row("Celery", "No", "High", 3, ["Sedano", "Celery"]),
+            row("Cereals", "No", "High", 4, ["SENZA GLUTINE", "GLUTENFREI"]),
+            row("Crustaceans", "No", "High", 3, ["Crostacei", "Crustaceans"]),
+            row("Eggs", "No", "High", 3, ["Uova", "Eggs"]),
+            row("Fish", "No", "High", 3, ["Pesce", "Fish"]),
+            row("Lupin", "No", "High", 3, ["Lupini", "Lupins"]),
+            row("Milk", "No", "High", 3, ["Latte", "Milk"]),
+            row("Molluscs", "No", "High", 3, ["Molluschi", "Shellfish"]),
+            row("Mustard", "No", "High", 3, ["Senape", "Mustard"]),
+            row("Nuts", "No", "High", 3, ["Frutta a guscio", "Nuts"]),
+            row("Peanuts", "No", "High", 3, ["Arachidi", "Peanuts"]),
+            row("Sesame Seeds", "No", "High", 3, ["Semi di sesamo", "Sesame"]),
+            row("Soya", "No", "High", 3, ["Soia", "Soy"]),
+            row("Sulphur dioxide", "No", "High", 3, ["Anidride solforosa", "Sulphites"]),
+
+            row("Vegetarian", "No", "High", 1, ["Carne bovina", "Beef"]),
+            row("Vegan", "No", "High", 1, ["Carne bovina", "Beef"]),
+            row("Contains GM Protein/DNA", "No", "High", 3, ["OGM", "GMO", "NO"]),
+            row("Palm oil", "Review Required", "Medium", 1, ["Aromi naturali", "Natural flavours"]),
+            row("Coeliacs", "Suitable (claimed)", "High", 4, ["SENZA GLUTINE", "GLUTENFREI"]),
+            row("Halal", "No", "High", 4, ["if raw material has been butchered with Halal rite", "Lot code encoding"]),
+            row("Kosher", "No", "High", 1, ["No kosher statement found"]),
+            row("Organic", "No", "High", 1, ["No organic claim found"]),
+
+            row("KJ", "665", "High", 2, ["Energy value", "KJ", "665"]),
+            row("Kcal", "159", "High", 2, ["Energy value", "Kcal", "159"]),
+            row("Fat", "4", "High", 2, ["Grassi", "Fat", "4"]),
+            row("Saturates", "1", "High", 2, ["saturated fatty acids", "1"]),
+            row("Carbs", "<1", "High", 2, ["Carbohydrates", "< 1"]),
+            row("Sugars", "<1", "High", 2, ["of which sugars", "< 1"]),
+            row("Fibre", "0", "High", 2, ["Fibre", "Fibers", "0"]),
+            row("Protein", "30", "High", 2, ["Proteins", "30"]),
+            row("Salt", "3.7", "High", 2, ["Sale", "Salt", "3,7"]),
+        ]
+        return normalise_rows(raw)
+
+    return normalise_rows([
+        row("Name", "Not extracted", "Low", 1, ["Unknown document format in mock mode"])
+    ])
+
 
 def render_highlighted_page(pdf_bytes, page_number, source_terms):
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -154,17 +251,8 @@ def render_highlighted_page(pdf_bytes, page_number, source_terms):
     pix = page.get_pixmap(matrix=fitz.Matrix(1.7, 1.7), alpha=False)
     return pix.tobytes("png"), hit_count
 
-def make_export_row(metadata, edited_values):
-    row = {col: "" for col in EXPORT_COLUMNS}
-    row["SKU"] = metadata["sku"]
-    row["Name"] = metadata["name"]
-    row["Supplier code"] = metadata["supplier_code"]
-    for field, value in edited_values.items():
-        if field in row:
-            row[field] = value
-    return pd.DataFrame([row], columns=EXPORT_COLUMNS)
 
-def build_extracted_data_row(spec_id, metadata, edited_values, rows):
+def make_export_row(metadata, edited_values):
     export_row = {col: "" for col in EXPORT_COLUMNS}
     export_row["SKU"] = metadata["sku"]
     export_row["Name"] = metadata["name"]
@@ -174,17 +262,22 @@ def build_extracted_data_row(spec_id, metadata, edited_values, rows):
         if field in export_row:
             export_row[field] = value
 
-    medium_low_count = sum(1 for row in rows if row["Confidence"] in ["Medium", "Low"])
-    review_required = "Yes" if medium_low_count > 0 else "No"
+    return pd.DataFrame([export_row], columns=EXPORT_COLUMNS)
 
-    evidence = []
-    for row in rows:
-        evidence.append({
-            "Field": row["Field"],
-            "Confidence": row["Confidence"],
-            "Source_Page": row["Page"],
-            "Source_Text": row["Sources"]
-        })
+
+def build_extracted_data_row(spec_id, metadata, edited_values, rows):
+    export_row = make_export_row(metadata, edited_values).iloc[0].to_dict()
+
+    medium_low_count = sum(1 for r in rows if r["Confidence"] in ["Medium", "Low"])
+    evidence = [
+        {
+            "Field": r["Field"],
+            "Confidence": r["Confidence"],
+            "Source_Page": r["Page"],
+            "Source_Text": r["Sources"]
+        }
+        for r in rows
+    ]
 
     extracted_row = {
         "Spec_ID": spec_id,
@@ -192,21 +285,21 @@ def build_extracted_data_row(spec_id, metadata, edited_values, rows):
         "Name": metadata["name"],
         "Supplier_Code": metadata["supplier_code"],
         "Confidence_Summary": f"{medium_low_count} fields require review",
-        "Review_Required": review_required,
+        "Review_Required": "Yes" if medium_low_count > 0 else "No",
         "Evidence_JSON": str(evidence)
     }
 
-    for col, value in export_row.items():
+    for col in EXPORT_COLUMNS:
         if col == "Supplier code":
             continue
-        extracted_row[col] = value
+        extracted_row[col] = export_row.get(col, "")
 
     return extracted_row
 
+
 def save_to_google_sheets(metadata, edited_values, rows, uploaded_filename):
     spec_id = "SPEC-" + datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + str(uuid.uuid4())[:8].upper()
-    medium_low_count = sum(1 for row in rows if row["Confidence"] in ["Medium", "Low"])
-    extraction_status = "Pending Review" if medium_low_count > 0 else "Reviewed"
+    medium_low_count = sum(1 for r in rows if r["Confidence"] in ["Medium", "Low"])
 
     product_record = {
         "SKU": metadata["sku"],
@@ -249,25 +342,23 @@ def save_to_google_sheets(metadata, edited_values, rows, uploaded_filename):
         "supplier_code": metadata["supplier_code"],
         "supplier_name": metadata["supplier_name"],
         "spec_status": "Current",
-        "product_status": "Active",
         "version": "1",
-        "file_name": uploaded_filename,
-        "drive_path": specification_record["Drive_Path"],
         "upload_date": metadata["upload_date"],
-        "extraction_status": extraction_status,
+        "extraction_status": "Pending Review" if medium_low_count > 0 else "Reviewed",
         "fields_extracted": len(rows),
         "fields_requiring_review": medium_low_count
     }
 
+
 st.title("SpecStream")
-st.caption("Google Sheets-connected version: one row per specification")
+st.caption("Google Sheets-connected version: allergen-safe, one row per specification")
 
 if "mode" not in st.session_state:
     st.session_state["mode"] = "home"
 
 if st.session_state["mode"] == "home":
     st.subheader("Home")
-    search = st.text_input("Search by SKU, product name, supplier code or supplier name")
+    st.text_input("Search by SKU, product name, supplier code or supplier name")
     st.info("Search will be connected after save-to-database is verified.")
 
     if st.button("Add new product / specification"):
@@ -331,36 +422,39 @@ elif st.session_state["mode"] == "add":
             h2.markdown('<div class="table-header">Value</div>', unsafe_allow_html=True)
             h3.markdown('<div class="table-header">Confidence</div>', unsafe_allow_html=True)
 
-            for i, row in enumerate(rows):
+            for i, r in enumerate(rows):
                 st.markdown('<div class="field-card">', unsafe_allow_html=True)
                 c1, c2, c3 = st.columns([0.30, 0.52, 0.18])
-                c1.markdown(f"**{row['Field']}**")
 
-                if c2.button(str(row["Value"]), key=f"value_click_{i}", use_container_width=True):
-                    st.session_state["selected_row"] = row
+                c1.markdown(f"**{r['Field']}**")
+
+                if c2.button(str(r["Value"]), key=f"value_click_{i}", use_container_width=True):
+                    st.session_state["selected_row"] = r
                     st.session_state["pdf_viewer_open"] = True
                     st.rerun()
 
                 c2.markdown(
-                    f'<div class="source-text">Source text: {", ".join(row["Sources"])}</div>',
+                    f'<div class="source-text">Source text: {", ".join(r["Sources"])}</div>',
                     unsafe_allow_html=True
                 )
+
                 c3.markdown(
-                    f'<div class="{confidence_class(row["Confidence"])}">{row["Confidence"]}</div>',
+                    f'<div class="{confidence_class(r["Confidence"])}">{r["Confidence"]}</div>',
                     unsafe_allow_html=True
                 )
 
                 edited_value = st.text_input(
-                    f"Edit {row['Field']}",
-                    value=row["Value"],
+                    f"Edit {r['Field']}",
+                    value=r["Value"],
                     key=f"edit_{i}",
                     label_visibility="collapsed"
                 )
 
-                edited_values[row["Field"]] = edited_value
+                edited_values[r["Field"]] = edited_value
                 st.markdown('</div>', unsafe_allow_html=True)
 
             export_df = make_export_row(metadata, edited_values)
+
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine="openpyxl") as writer:
                 export_df.to_excel(writer, index=False, sheet_name="Export")
