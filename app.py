@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import fitz
 import io
-import base64
 
 st.set_page_config(page_title="QA Spec Prototype", layout="wide")
 
@@ -52,37 +51,23 @@ st.markdown("""
     text-align: center;
     font-weight: bold;
 }
-.fixed-viewer {
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: 50vw;
-    height: 100vh;
-    background: white;
-    z-index: 999999;
-    border-left: 2px solid #cfd4dc;
-    overflow-y: auto;
-    padding: 18px;
-    box-shadow: -4px 0 12px rgba(0,0,0,0.15);
-}
-.left-shrunk {
-    width: 47vw;
-}
 </style>
 """, unsafe_allow_html=True)
 
 st.title("QA Specification Extraction Prototype")
-st.caption("v0.7 — working split PDF viewer")
+st.caption("Stable split-view version")
 
 uploaded_file = st.file_uploader("Upload a PDF specification", type=["pdf"])
 
 
 def confidence_class(confidence):
-    return {
-        "High": "conf-high",
-        "Medium": "conf-medium",
-        "Low": "conf-low"
-    }.get(confidence, "conf-high")
+    if confidence == "High":
+        return "conf-high"
+    if confidence == "Medium":
+        return "conf-medium"
+    if confidence == "Low":
+        return "conf-low"
+    return "conf-high"
 
 
 def extract_pdf_text(pdf_bytes):
@@ -111,7 +96,7 @@ def mock_extract(pages):
             {"Field": "Origin_Summary", "Value": "India – processed in UK", "Confidence": "High", "Page": 1, "Sources": ["Origin India", "Processed in UK"]},
             {"Field": "Halal", "Value": "Suitable (not certified)", "Confidence": "High", "Page": 3, "Sources": ["Halal", "YES", "Not Certified"]},
             {"Field": "Kosher", "Value": "Suitable (not certified)", "Confidence": "High", "Page": 3, "Sources": ["Kosher", "YES", "Not Certified"]},
-            {"Field": "GMO_Free", "Value": "Yes", "Confidence": "High", "Page": 5, "Sources": ["genetically modified varieties are known", "This product needs declaration as GMO", "No"]},
+            {"Field": "GMO_Free", "Value": "Yes", "Confidence": "High", "Page": 5, "Sources": ["genetically modified varieties are known", "This product needs declaration as GMO"]},
         ]
 
     if "ananas" in joined or "pineapple" in joined:
@@ -145,8 +130,12 @@ def render_highlighted_page(pdf_bytes, page_number, source_terms):
     hit_count = 0
 
     for term in source_terms:
-        rects = page.search_for(term) if term else []
-        if not rects and term:
+        if not term:
+            continue
+
+        rects = page.search_for(term)
+
+        if not rects:
             for word in term.split()[:6]:
                 rects.extend(page.search_for(word))
 
@@ -159,11 +148,14 @@ def render_highlighted_page(pdf_bytes, page_number, source_terms):
     return pix.tobytes("png"), hit_count
 
 
-def b64(image_bytes):
-    return base64.b64encode(image_bytes).decode("utf-8")
-
-
 if uploaded_file:
+    current_file_key = uploaded_file.name
+
+    if st.session_state.get("current_file_key") != current_file_key:
+        st.session_state["current_file_key"] = current_file_key
+        st.session_state["pdf_viewer_open"] = False
+        st.session_state["selected_row"] = None
+
     pdf_bytes = uploaded_file.read()
     pages = extract_pdf_text(pdf_bytes)
     rows = mock_extract(pages)
@@ -174,107 +166,102 @@ if uploaded_file:
     if "selected_row" not in st.session_state:
         st.session_state["selected_row"] = None
 
-    if st.session_state["pdf_viewer_open"]:
-        st.markdown('<div class="left-shrunk">', unsafe_allow_html=True)
-
-    st.subheader("Extracted Results")
-
-    h1, h2, h3 = st.columns([0.30, 0.52, 0.18])
-    h1.markdown('<div class="table-header">Field</div>', unsafe_allow_html=True)
-    h2.markdown('<div class="table-header">Value</div>', unsafe_allow_html=True)
-    h3.markdown('<div class="table-header">Confidence</div>', unsafe_allow_html=True)
-
-    edited_rows = []
-
-    for i, row in enumerate(rows):
-        st.markdown('<div class="field-card">', unsafe_allow_html=True)
-
-        c1, c2, c3 = st.columns([0.30, 0.52, 0.18])
-        c1.markdown(f"**{row['Field']}**")
-
-        if c2.button(str(row["Value"]), key=f"value_click_{i}", use_container_width=True):
-            st.session_state["selected_row"] = row
-            st.session_state["pdf_viewer_open"] = True
-            st.rerun()
-
-        c2.markdown(
-            f'<div class="source-text">Source text: {", ".join(row["Sources"])}</div>',
-            unsafe_allow_html=True
-        )
-
-        c3.markdown(
-            f'<div class="{confidence_class(row["Confidence"])}">{row["Confidence"]}</div>',
-            unsafe_allow_html=True
-        )
-
-        edited_value = st.text_input(
-            f"Edit {row['Field']}",
-            value=row["Value"],
-            key=f"edit_{i}",
-            label_visibility="collapsed"
-        )
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        edited_rows.append({
-            "Field": row["Field"],
-            "Value": edited_value,
-            "Confidence": row["Confidence"],
-            "Source_Page": row["Page"],
-            "Source_Terms": ", ".join(row["Sources"])
-        })
-
-    export_df = pd.DataFrame(edited_rows)
-
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        export_df.to_excel(writer, index=False, sheet_name="Extracted Spec")
-
-    st.download_button(
-        "Download Excel",
-        output.getvalue(),
-        file_name="extracted_spec.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-    if st.session_state["pdf_viewer_open"]:
-        st.markdown('</div>', unsafe_allow_html=True)
-
     if st.session_state["pdf_viewer_open"] and st.session_state["selected_row"]:
-        selected = st.session_state["selected_row"]
+        left, right = st.columns([1, 1])
+    else:
+        left = st.container()
+        right = None
 
-        close_col, _ = st.columns([0.25, 0.75])
-        with close_col:
-            if st.button("Close PDF Viewer"):
+    with left:
+        st.subheader("Extracted Results")
+
+        h1, h2, h3 = st.columns([0.30, 0.52, 0.18])
+        h1.markdown('<div class="table-header">Field</div>', unsafe_allow_html=True)
+        h2.markdown('<div class="table-header">Value</div>', unsafe_allow_html=True)
+        h3.markdown('<div class="table-header">Confidence</div>', unsafe_allow_html=True)
+
+        edited_rows = []
+
+        for i, row in enumerate(rows):
+            st.markdown('<div class="field-card">', unsafe_allow_html=True)
+
+            c1, c2, c3 = st.columns([0.30, 0.52, 0.18])
+
+            c1.markdown(f"**{row['Field']}**")
+
+            if c2.button(str(row["Value"]), key=f"value_click_{i}", use_container_width=True):
+                st.session_state["selected_row"] = row
+                st.session_state["pdf_viewer_open"] = True
+                st.rerun()
+
+            c2.markdown(
+                f'<div class="source-text">Source text: {", ".join(row["Sources"])}</div>',
+                unsafe_allow_html=True
+            )
+
+            c3.markdown(
+                f'<div class="{confidence_class(row["Confidence"])}">{row["Confidence"]}</div>',
+                unsafe_allow_html=True
+            )
+
+            edited_value = st.text_input(
+                f"Edit {row['Field']}",
+                value=row["Value"],
+                key=f"edit_{i}",
+                label_visibility="collapsed"
+            )
+
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            edited_rows.append({
+                "Field": row["Field"],
+                "Value": edited_value,
+                "Confidence": row["Confidence"],
+                "Source_Page": row["Page"],
+                "Source_Terms": ", ".join(row["Sources"])
+            })
+
+        export_df = pd.DataFrame(edited_rows)
+
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            export_df.to_excel(writer, index=False, sheet_name="Extracted Spec")
+
+        st.download_button(
+            "Download Excel",
+            output.getvalue(),
+            file_name="extracted_spec.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    if right is not None:
+        with right:
+            selected = st.session_state["selected_row"]
+
+            top1, top2 = st.columns([0.7, 0.3])
+            top1.subheader("PDF Source Viewer")
+
+            if top2.button("Close"):
                 st.session_state["pdf_viewer_open"] = False
                 st.session_state["selected_row"] = None
                 st.rerun()
 
-        image_bytes, hit_count = render_highlighted_page(
-            pdf_bytes,
-            int(selected["Page"]),
-            selected["Sources"]
-        )
+            st.info(
+                f"Selected field: {selected['Field']} | "
+                f"Page: {selected['Page']} | "
+                f"Sources: {', '.join(selected['Sources'])}"
+            )
 
-        warning = ""
-        if hit_count == 0:
-            warning = "<div style='background:#fff3cd;padding:8px;border-radius:6px;margin-bottom:8px;'>No exact highlight found. Showing source page only.</div>"
+            image_bytes, hit_count = render_highlighted_page(
+                pdf_bytes,
+                int(selected["Page"]),
+                selected["Sources"]
+            )
 
-        st.markdown(
-            f"""
-            <div class="fixed-viewer">
-                <h2>PDF Source Viewer</h2>
-                <div style="background:#f4f6f8;border:1px solid #dfe3e8;border-radius:8px;padding:10px;margin-bottom:12px;">
-                    <b>Selected field:</b> {selected["Field"]}<br>
-                    <b>Source page:</b> {selected["Page"]}<br>
-                    <b>Highlighted source text:</b><br>
-                    {", ".join(selected["Sources"])}
-                </div>
-                {warning}
-                <img src="data:image/png;base64,{b64(image_bytes)}" style="width:100%;height:auto;border:1px solid #ddd;border-radius:8px;" />
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+            if hit_count == 0:
+                st.warning("No exact highlight found. Showing source page only.")
+
+            st.image(image_bytes, use_container_width=True)
+
 else:
     st.info("Upload a PDF specification to begin.")
