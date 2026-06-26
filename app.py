@@ -5,20 +5,86 @@ import io
 
 st.set_page_config(page_title="QA Spec Prototype", layout="wide")
 
+st.markdown("""
+<style>
+div[data-testid="column"]:nth-of-type(2) {
+    position: sticky;
+    top: 1rem;
+    align-self: flex-start;
+    max-height: 92vh;
+    overflow-y: auto;
+    border-left: 1px solid #ddd;
+    padding-left: 1rem;
+}
+
+.field-card {
+    border: 1px solid #e1e4e8;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
+    background-color: #fafafa;
+}
+
+.source-text {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+}
+
+.table-header {
+    font-weight: 700;
+    background-color: #f0f2f6;
+    padding: 8px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.conf-high {
+    background-color: transparent;
+    color: black;
+    border: 1px solid #ddd;
+    padding: 6px;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.conf-medium {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+    padding: 6px;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.conf-low {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    padding: 6px;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: bold;
+}
+</style>
+""", unsafe_allow_html=True)
+
 st.title("QA Specification Extraction Prototype")
-st.caption("v0.3 — persistent PDF viewer, clickable values, multi-source highlighting")
+st.caption("v0.4 — cleaner table, sticky PDF evidence viewer, clickable source highlighting")
 
 uploaded_file = st.file_uploader("Upload a PDF specification", type=["pdf"])
 
 
-def confidence_badge(confidence):
+def confidence_class(confidence):
     if confidence == "High":
-        return "background-color: transparent; color: black; border: 1px solid #ddd;"
+        return "conf-high"
     if confidence == "Medium":
-        return "background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba;"
+        return "conf-medium"
     if confidence == "Low":
-        return "background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;"
-    return "background-color: transparent; color: black;"
+        return "conf-low"
+    return "conf-high"
 
 
 def extract_pdf_text(pdf_bytes):
@@ -42,10 +108,6 @@ def mock_extract(pages):
             {"Field": "Energy_kcal_100g", "Value": "427", "Confidence": "High", "Page": 3, "Sources": ["kcal 427"]},
             {"Field": "Energy_kJ_100g", "Value": "1783", "Confidence": "High", "Page": 3, "Sources": ["kj 1783"]},
             {"Field": "Protein_g_100g", "Value": "17.8", "Confidence": "High", "Page": 3, "Sources": ["Protein (g) 17.8"]},
-            {"Field": "Carbohydrates_g_100g", "Value": "33.7", "Confidence": "High", "Page": 3, "Sources": ["Carbohydrate (g) 33.7"]},
-            {"Field": "Sugars_g_100g", "Value": "2.3", "Confidence": "High", "Page": 3, "Sources": ["Sugar (g) 2.3"]},
-            {"Field": "Fat_g_100g", "Value": "22.3", "Confidence": "High", "Page": 3, "Sources": ["Fat (g) 22.3"]},
-            {"Field": "Saturates_g_100g", "Value": "1.5", "Confidence": "High", "Page": 3, "Sources": ["Saturates (g) 1.5"]},
             {"Field": "Salt_g_100g", "Value": "0.42", "Confidence": "High", "Page": 3, "Sources": ["Salt (g) 0.42"]},
             {"Field": "Origin_Summary", "Value": "India – processed in UK", "Confidence": "High", "Page": 1, "Sources": ["Origin India", "Processed in UK"]},
             {"Field": "Halal", "Value": "Suitable (not certified)", "Confidence": "High", "Page": 3, "Sources": ["Halal", "YES", "Not Certified"]},
@@ -111,48 +173,59 @@ if uploaded_file:
     rows = mock_extract(pages)
 
     if "pdf_viewer_open" not in st.session_state:
-        st.session_state["pdf_viewer_open"] = True
+        st.session_state["pdf_viewer_open"] = False
 
     if "selected_row" not in st.session_state:
-        st.session_state["selected_row"] = rows[0]
+        st.session_state["selected_row"] = None
 
-    left, right = st.columns([1, 1])
+    if st.session_state["pdf_viewer_open"]:
+        left, right = st.columns([1, 1])
+    else:
+        left = st.container()
+        right = None
 
     with left:
         st.subheader("Extracted Results")
 
-        h1, h2, h3 = st.columns([0.32, 0.48, 0.20])
-        h1.markdown("**Field**")
-        h2.markdown("**Value**")
-        h3.markdown("**Confidence**")
+        h1, h2, h3 = st.columns([0.30, 0.52, 0.18])
+        h1.markdown('<div class="table-header">Field</div>', unsafe_allow_html=True)
+        h2.markdown('<div class="table-header">Value</div>', unsafe_allow_html=True)
+        h3.markdown('<div class="table-header">Confidence</div>', unsafe_allow_html=True)
 
         edited_rows = []
 
         for i, row in enumerate(rows):
-            c1, c2, c3 = st.columns([0.32, 0.48, 0.20])
+            with st.container():
+                st.markdown('<div class="field-card">', unsafe_allow_html=True)
 
-            c1.write(row["Field"])
+                c1, c2, c3 = st.columns([0.30, 0.52, 0.18])
 
-            if c2.button(str(row["Value"]), key=f"value_click_{i}", use_container_width=True):
-                st.session_state["selected_row"] = row
-                st.session_state["pdf_viewer_open"] = True
+                c1.markdown(f"**{row['Field']}**")
 
-            badge_style = confidence_badge(row["Confidence"])
-            c3.markdown(
-                f"""
-                <div style="{badge_style}; padding: 6px; border-radius: 6px; text-align: center;">
-                    <b>{row["Confidence"]}</b>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+                if c2.button(str(row["Value"]), key=f"value_click_{i}", use_container_width=True):
+                    st.session_state["selected_row"] = row
+                    st.session_state["pdf_viewer_open"] = True
+                    st.rerun()
 
-            edited_value = st.text_input(
-                f"Edit {row['Field']}",
-                value=row["Value"],
-                key=f"edit_{i}",
-                label_visibility="collapsed"
-            )
+                c2.markdown(
+                    f'<div class="source-text">Source: {", ".join(row["Sources"])}</div>',
+                    unsafe_allow_html=True
+                )
+
+                conf_class = confidence_class(row["Confidence"])
+                c3.markdown(
+                    f'<div class="{conf_class}">{row["Confidence"]}</div>',
+                    unsafe_allow_html=True
+                )
+
+                edited_value = st.text_input(
+                    f"Edit {row['Field']}",
+                    value=row["Value"],
+                    key=f"edit_{i}",
+                    label_visibility="collapsed"
+                )
+
+                st.markdown('</div>', unsafe_allow_html=True)
 
             edited_rows.append({
                 "Field": row["Field"],
@@ -175,19 +248,22 @@ if uploaded_file:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-    with right:
-        if st.session_state["pdf_viewer_open"]:
+    if st.session_state["pdf_viewer_open"] and st.session_state["selected_row"]:
+        with right:
             selected = st.session_state["selected_row"]
 
-            top1, top2 = st.columns([0.75, 0.25])
+            top1, top2 = st.columns([0.72, 0.28])
             top1.subheader("PDF Source Viewer")
+
             if top2.button("Close viewer"):
                 st.session_state["pdf_viewer_open"] = False
+                st.session_state["selected_row"] = None
+                st.rerun()
 
             st.write(f"**Selected field:** {selected['Field']}")
             st.write(f"**Source page:** {selected['Page']}")
-            st.write("**Highlighted source terms:**")
-            st.write(", ".join(selected["Sources"]))
+            st.write("**Highlighted source text:**")
+            st.info(", ".join(selected["Sources"]))
 
             image_bytes, hit_count = render_highlighted_page(
                 pdf_bytes,
@@ -199,6 +275,3 @@ if uploaded_file:
                 st.warning("No exact highlight found. Showing source page only.")
 
             st.image(image_bytes, use_container_width=True)
-
-        else:
-            st.info("PDF viewer closed. Click any output value to reopen it.")
