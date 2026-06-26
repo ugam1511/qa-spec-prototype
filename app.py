@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import fitz
 import io
@@ -66,42 +67,14 @@ st.markdown("""
     font-weight: bold;
 }
 
-.fixed-viewer {
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: 49vw;
-    height: 100vh;
-    background: white;
-    z-index: 999999;
-    border-left: 2px solid #cfd4dc;
-    overflow-y: auto;
-    padding: 18px;
-    box-shadow: -4px 0 12px rgba(0,0,0,0.15);
-}
-
 .left-shrunk {
     width: 48vw;
-}
-
-.viewer-title {
-    font-size: 22px;
-    font-weight: 700;
-    margin-bottom: 8px;
-}
-
-.viewer-meta {
-    background: #f4f6f8;
-    border: 1px solid #dfe3e8;
-    border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 12px;
 }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("QA Specification Extraction Prototype")
-st.caption("v0.5 — fixed split-screen PDF viewer with clickable values and highlighted source evidence")
+st.caption("v0.6 — clean results table with optional fixed PDF source viewer")
 
 uploaded_file = st.file_uploader("Upload a PDF specification", type=["pdf"])
 
@@ -286,6 +259,11 @@ if uploaded_file:
     if st.session_state["pdf_viewer_open"] and st.session_state["selected_row"]:
         selected = st.session_state["selected_row"]
 
+        if st.button("Close PDF Viewer", key="close_pdf_viewer"):
+            st.session_state["pdf_viewer_open"] = False
+            st.session_state["selected_row"] = None
+            st.rerun()
+
         image_bytes, hit_count = render_highlighted_page(
             pdf_bytes,
             int(selected["Page"]),
@@ -294,28 +272,65 @@ if uploaded_file:
 
         img64 = image_to_base64(image_bytes)
 
-        close_clicked = st.button("Close PDF Viewer", key="close_pdf_viewer_button")
-        if close_clicked:
-            st.session_state["pdf_viewer_open"] = False
-            st.session_state["selected_row"] = None
-            st.rerun()
+        warning_html = ""
+        if hit_count == 0:
+            warning_html = """
+            <div style="
+                background:#fff3cd;
+                border:1px solid #ffeeba;
+                color:#856404;
+                padding:8px;
+                border-radius:6px;
+                margin-bottom:10px;">
+                No exact highlight found. Showing source page only.
+            </div>
+            """
 
-        st.markdown(
+        components.html(
             f"""
-            <div class="fixed-viewer">
-                <div class="viewer-title">PDF Source Viewer</div>
+            <div style="
+                position: fixed;
+                top: 0;
+                right: 0;
+                width: 50vw;
+                height: 100vh;
+                background: white;
+                z-index: 999999;
+                border-left: 2px solid #cfd4dc;
+                overflow-y: auto;
+                padding: 18px;
+                box-shadow: -4px 0 12px rgba(0,0,0,0.15);
+                font-family: Arial, sans-serif;
+            ">
+                <h2>PDF Source Viewer</h2>
 
-                <div class="viewer-meta">
+                <div style="
+                    background:#f4f6f8;
+                    border:1px solid #dfe3e8;
+                    border-radius:8px;
+                    padding:10px;
+                    margin-bottom:12px;">
                     <b>Selected field:</b> {selected["Field"]}<br>
                     <b>Source page:</b> {selected["Page"]}<br>
                     <b>Highlighted source text:</b><br>
                     {", ".join(selected["Sources"])}
                 </div>
 
-                {"<div style='color:#856404; background:#fff3cd; border:1px solid #ffeeba; padding:8px; border-radius:6px; margin-bottom:10px;'>No exact highlight found. Showing source page only.</div>" if hit_count == 0 else ""}
+                {warning_html}
 
-                <img src="data:image/png;base64,{img64}" style="width:100%; height:auto; border:1px solid #ddd; border-radius:8px;" />
+                <img
+                    src="data:image/png;base64,{img64}"
+                    style="
+                        width:100%;
+                        height:auto;
+                        border:1px solid #ddd;
+                        border-radius:8px;
+                    "
+                />
             </div>
             """,
-            unsafe_allow_html=True
+            height=1,
+            scrolling=False
         )
+else:
+    st.info("Upload a PDF specification to begin.")
