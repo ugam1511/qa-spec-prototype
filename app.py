@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 import fitz
 import io
+from datetime import date
 
-st.set_page_config(page_title="QA Spec Prototype", layout="wide")
+st.set_page_config(page_title="QA Spec Manager", layout="wide")
 
 st.markdown("""
 <style>
@@ -54,10 +55,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("QA Specification Extraction Prototype")
-st.caption("Stable split-view version with Cumin, Pineapple and Bresaola mock extraction")
-
-uploaded_file = st.file_uploader("Upload a PDF specification", type=["pdf"])
+EXPORT_COLUMNS = [
+    "SKU", "Name", "Supplier code",
+    "Celery", "Cereals", "Crustaceans", "Eggs", "Fish", "Lupin", "Milk",
+    "Molluscs", "Mustard", "Nuts", "Peanuts", "Sesame Seeds", "Soya",
+    "Sulphur dioxide", "Vegetarian", "Vegan", "Contains GM Protein/DNA",
+    "Palm oil", "Coeliacs", "Halal", "Kosher", "Organic",
+    "KJ", "Kcal", "Fat", "Saturates", "Carbs", "Sugars", "Fibre",
+    "Protein", "Salt", "Ingredients table"
+]
 
 
 def confidence_class(confidence):
@@ -80,96 +86,116 @@ def mock_extract(pages):
 
     if "ground cumin" in joined:
         return [
-            {"Field": "Product_Name", "Value": "GROUND CUMIN", "Confidence": "High", "Page": 1, "Sources": ["Product Name GROUND CUMIN"]},
-            {"Field": "Product_Description", "Value": "Ground to a medium fine powder", "Confidence": "High", "Page": 1, "Sources": ["Ground to a medium fine powder"]},
-            {"Field": "Ingredients_Full_Text", "Value": "Cumin", "Confidence": "High", "Page": 1, "Sources": ["Ingredients declaration Cumin"]},
-            {"Field": "Allergens_Present", "Value": "None", "Confidence": "High", "Page": 4, "Sources": ["Allergens in product None"]},
-            {"Field": "Allergens_May_Contain", "Value": "Peanuts (supply chain possible airborne cross-contamination)", "Confidence": "Medium", "Page": 4, "Sources": ["Peanuts", "Possible airborne cross contamination", "Customer to risk assess"]},
-            {"Field": "Energy_kcal_100g", "Value": "427", "Confidence": "High", "Page": 3, "Sources": ["kcal 427"]},
-            {"Field": "Energy_kJ_100g", "Value": "1783", "Confidence": "High", "Page": 3, "Sources": ["kj 1783"]},
-            {"Field": "Protein_g_100g", "Value": "17.8", "Confidence": "High", "Page": 3, "Sources": ["Protein (g) 17.8"]},
-            {"Field": "Carbohydrates_g_100g", "Value": "33.7", "Confidence": "High", "Page": 3, "Sources": ["Carbohydrate (g) 33.7"]},
-            {"Field": "Sugars_g_100g", "Value": "2.3", "Confidence": "High", "Page": 3, "Sources": ["Sugar (g) 2.3"]},
-            {"Field": "Fat_g_100g", "Value": "22.3", "Confidence": "High", "Page": 3, "Sources": ["Fat (g) 22.3"]},
-            {"Field": "Saturates_g_100g", "Value": "1.5", "Confidence": "High", "Page": 3, "Sources": ["Saturates (g) 1.5"]},
-            {"Field": "Salt_g_100g", "Value": "0.42", "Confidence": "High", "Page": 3, "Sources": ["Salt (g) 0.42"]},
-            {"Field": "Origin_Summary", "Value": "India – processed in UK", "Confidence": "High", "Page": 1, "Sources": ["Origin India", "Processed in UK"]},
-            {"Field": "Vegan", "Value": "Suitable", "Confidence": "High", "Page": 3, "Sources": ["Vegans YES"]},
+            {"Field": "Name", "Value": "GROUND CUMIN", "Confidence": "High", "Page": 1, "Sources": ["Product Name GROUND CUMIN"]},
+            {"Field": "Ingredients table", "Value": "Cumin", "Confidence": "High", "Page": 1, "Sources": ["Ingredients declaration Cumin"]},
+            {"Field": "Celery", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Allergens in product None"]},
+            {"Field": "Cereals", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Cereals containing gluten", "Present in Product No"]},
+            {"Field": "Crustaceans", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Crustaceans", "Present in Product No"]},
+            {"Field": "Eggs", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Egg", "Present in Product No"]},
+            {"Field": "Fish", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Fish", "Present in Product No"]},
+            {"Field": "Lupin", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Lupin", "Present in Product No"]},
+            {"Field": "Milk", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Milk and dairy products", "Present in Product No"]},
+            {"Field": "Molluscs", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Molluscs", "Present in Product No"]},
+            {"Field": "Mustard", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Mustard", "Present in Product No"]},
+            {"Field": "Nuts", "Value": "No", "Confidence": "Medium", "Page": 5, "Sources": ["Nut & Peanut Statement"]},
+            {"Field": "Peanuts", "Value": "May Contain", "Confidence": "Medium", "Page": 4, "Sources": ["Peanuts", "Possible airborne cross contamination"]},
+            {"Field": "Sesame Seeds", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Sesame Seeds", "Present in Product No"]},
+            {"Field": "Soya", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Soybeans", "Present in Product No"]},
+            {"Field": "Sulphur dioxide", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["Sulphur dioxide", "Present in Product No"]},
             {"Field": "Vegetarian", "Value": "Suitable", "Confidence": "High", "Page": 3, "Sources": ["Vegetarians YES"]},
-            {"Field": "Coeliac", "Value": "Suitable (claimed)", "Confidence": "High", "Page": 3, "Sources": ["Coeliacs YES"]},
-            {"Field": "Lactose_Free", "Value": "Suitable", "Confidence": "Medium", "Page": 4, "Sources": ["Milk and dairy products", "Present in Product No"]},
-            {"Field": "Halal", "Value": "Suitable (not certified)", "Confidence": "High", "Page": 3, "Sources": ["Halal", "YES", "Not Certified"]},
-            {"Field": "Kosher", "Value": "Suitable (not certified)", "Confidence": "High", "Page": 3, "Sources": ["Kosher", "YES", "Not Certified"]},
+            {"Field": "Vegan", "Value": "Suitable", "Confidence": "High", "Page": 3, "Sources": ["Vegans YES"]},
+            {"Field": "Contains GM Protein/DNA", "Value": "No", "Confidence": "High", "Page": 5, "Sources": ["This product needs declaration as GMO No"]},
+            {"Field": "Palm oil", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["Ingredients declaration Cumin"]},
+            {"Field": "Coeliacs", "Value": "Suitable (claimed)", "Confidence": "High", "Page": 3, "Sources": ["Coeliacs YES"]},
+            {"Field": "Halal", "Value": "Suitable (not certified)", "Confidence": "High", "Page": 3, "Sources": ["Halal YES", "Not Certified"]},
+            {"Field": "Kosher", "Value": "Suitable (not certified)", "Confidence": "High", "Page": 3, "Sources": ["Kosher YES", "Not Certified"]},
             {"Field": "Organic", "Value": "No", "Confidence": "High", "Page": 5, "Sources": ["No organic claim found"]},
-            {"Field": "Palm_Oil_Free", "Value": "Yes", "Confidence": "High", "Page": 1, "Sources": ["Ingredients declaration Cumin"]},
-            {"Field": "GMO_Free", "Value": "Yes", "Confidence": "High", "Page": 5, "Sources": ["genetically modified varieties are known", "This product needs declaration as GMO"]},
-            {"Field": "Review_Required", "Value": "Yes", "Confidence": "Medium", "Page": 4, "Sources": ["Customer to risk assess"]}
+            {"Field": "KJ", "Value": "1783", "Confidence": "High", "Page": 3, "Sources": ["kj 1783"]},
+            {"Field": "Kcal", "Value": "427", "Confidence": "High", "Page": 3, "Sources": ["kcal 427"]},
+            {"Field": "Fat", "Value": "22.3", "Confidence": "High", "Page": 3, "Sources": ["Fat (g) 22.3"]},
+            {"Field": "Saturates", "Value": "1.5", "Confidence": "High", "Page": 3, "Sources": ["Saturates (g) 1.5"]},
+            {"Field": "Carbs", "Value": "33.7", "Confidence": "High", "Page": 3, "Sources": ["Carbohydrate (g) 33.7"]},
+            {"Field": "Sugars", "Value": "2.3", "Confidence": "High", "Page": 3, "Sources": ["Sugar (g) 2.3"]},
+            {"Field": "Fibre", "Value": "Not stated", "Confidence": "Medium", "Page": 3, "Sources": ["Nutrition information per 100g"]},
+            {"Field": "Protein", "Value": "17.8", "Confidence": "High", "Page": 3, "Sources": ["Protein (g) 17.8"]},
+            {"Field": "Salt", "Value": "0.42", "Confidence": "High", "Page": 3, "Sources": ["Salt (g) 0.42"]},
         ]
 
     if "ananas" in joined or "pineapple" in joined:
         return [
-            {"Field": "Product_Name", "Value": "Pineapple Paste", "Confidence": "High", "Page": 1, "Sources": ["ANANAS", "PINEAPPLE"]},
-            {"Field": "Product_Description", "Value": "Semifinished product in paste for gelato production. Not intended for direct consumption. Made in Italy.", "Confidence": "High", "Page": 1, "Sources": ["Semifinished product in paste for Gelato production", "not allowed direct consumption", "Made in Italy"]},
-            {"Field": "Ingredients_Full_Text", "Value": "Glucose syrup, Saccharose syrup, Citric acid, Vegetable fibre (Inulin), Flavours, Pectin, E100, E160b", "Confidence": "High", "Page": 1, "Sources": ["GLUCOSE SYRUP", "SACCHAROSE SYRUP", "CITRIC ACID", "VEGETABLE FIBER", "FLAVOURS", "PECTIN", "E100", "E160b"]},
-            {"Field": "Ingredients_With_Percentages", "Value": "No percentages declared", "Confidence": "High", "Page": 1, "Sources": ["Composition", "GLUCOSE SYRUP"]},
-            {"Field": "Allergens_Present", "Value": "None declared", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
-            {"Field": "Allergens_May_Contain", "Value": "Tree Nuts, Soy, Milk", "Confidence": "High", "Page": 1, "Sources": ["SHELLED NUTS", "SOY", "MILK"]},
-            {"Field": "Energy_kcal_100g", "Value": "277.36", "Confidence": "High", "Page": 1, "Sources": ["277,36 Kcal"]},
-            {"Field": "Energy_kJ_100g", "Value": "1160.11", "Confidence": "High", "Page": 1, "Sources": ["1160,11 Kj"]},
-            {"Field": "Protein_g_100g", "Value": "0.76", "Confidence": "High", "Page": 1, "Sources": ["PROTEINS 0,76"]},
-            {"Field": "Carbohydrates_g_100g", "Value": "67.79", "Confidence": "High", "Page": 1, "Sources": ["CARBOHYDRATES 67,79"]},
-            {"Field": "Sugars_g_100g", "Value": "67.51", "Confidence": "High", "Page": 1, "Sources": ["sugars 67,51"]},
-            {"Field": "Fat_g_100g", "Value": "0.39", "Confidence": "High", "Page": 1, "Sources": ["FATS 0,39"]},
-            {"Field": "Saturates_g_100g", "Value": "0.04", "Confidence": "High", "Page": 1, "Sources": ["saturated 0,04"]},
-            {"Field": "Fibre_g_100g", "Value": "0.38", "Confidence": "High", "Page": 1, "Sources": ["FIBER 0,38"]},
-            {"Field": "Salt_g_100g", "Value": "0", "Confidence": "High", "Page": 1, "Sources": ["SALT 0 g"]},
-            {"Field": "Origin_Summary", "Value": "Italy", "Confidence": "High", "Page": 1, "Sources": ["Made in Italy", "Prodotto in Italia"]},
-            {"Field": "Vegan", "Value": "Suitable", "Confidence": "Medium", "Page": 1, "Sources": ["GLUCOSE SYRUP", "FLAVOURS"]},
-            {"Field": "Vegetarian", "Value": "Suitable", "Confidence": "High", "Page": 1, "Sources": ["Composition", "GLUCOSE SYRUP"]},
-            {"Field": "Coeliac", "Value": "Suitable", "Confidence": "High", "Page": 1, "Sources": ["No gluten-containing ingredients identified"]},
-            {"Field": "Lactose_Free", "Value": "Review Required", "Confidence": "Medium", "Page": 1, "Sources": ["MILK", "MAY CONTAIN TRACES"]},
+            {"Field": "Name", "Value": "Pineapple Paste", "Confidence": "High", "Page": 1, "Sources": ["ANANAS", "PINEAPPLE"]},
+            {"Field": "Ingredients table", "Value": "Glucose syrup, Saccharose syrup, Citric acid, Vegetable fibre (Inulin), Flavours, Pectin, E100, E160b", "Confidence": "High", "Page": 1, "Sources": ["GLUCOSE SYRUP", "SACCHAROSE SYRUP", "CITRIC ACID", "VEGETABLE FIBER", "FLAVOURS", "PECTIN", "E100", "E160b"]},
+            {"Field": "Celery", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
+            {"Field": "Cereals", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No gluten-containing ingredients identified"]},
+            {"Field": "Crustaceans", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
+            {"Field": "Eggs", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
+            {"Field": "Fish", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
+            {"Field": "Lupin", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
+            {"Field": "Milk", "Value": "May Contain", "Confidence": "High", "Page": 1, "Sources": ["MILK", "MAY CONTAIN TRACES"]},
+            {"Field": "Molluscs", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
+            {"Field": "Mustard", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
+            {"Field": "Nuts", "Value": "May Contain", "Confidence": "High", "Page": 1, "Sources": ["SHELLED NUTS"]},
+            {"Field": "Peanuts", "Value": "No", "Confidence": "Medium", "Page": 1, "Sources": ["SHELLED NUTS"]},
+            {"Field": "Sesame Seeds", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
+            {"Field": "Soya", "Value": "May Contain", "Confidence": "High", "Page": 1, "Sources": ["SOY"]},
+            {"Field": "Sulphur dioxide", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["MAY CONTAIN TRACES"]},
+            {"Field": "Vegetarian", "Value": "Suitable", "Confidence": "High", "Page": 1, "Sources": ["Composition"]},
+            {"Field": "Vegan", "Value": "Suitable", "Confidence": "Medium", "Page": 1, "Sources": ["FLAVOURS"]},
+            {"Field": "Contains GM Protein/DNA", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["It doesn't contain OGM ingredients"]},
+            {"Field": "Palm oil", "Value": "Review Required", "Confidence": "Medium", "Page": 1, "Sources": ["FLAVOURS"]},
+            {"Field": "Coeliacs", "Value": "Suitable", "Confidence": "High", "Page": 1, "Sources": ["No gluten-containing ingredients identified"]},
             {"Field": "Halal", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No halal statement found"]},
             {"Field": "Kosher", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No kosher statement found"]},
             {"Field": "Organic", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No organic claim found"]},
-            {"Field": "Palm_Oil_Free", "Value": "Review Required", "Confidence": "Medium", "Page": 1, "Sources": ["FLAVOURS"]},
-            {"Field": "GMO_Free", "Value": "Yes", "Confidence": "High", "Page": 1, "Sources": ["It doesn't contain OGM ingredients"]},
-            {"Field": "Review_Required", "Value": "Yes", "Confidence": "Medium", "Page": 1, "Sources": ["MILK", "FLAVOURS"]}
+            {"Field": "KJ", "Value": "1160.11", "Confidence": "High", "Page": 1, "Sources": ["1160,11 Kj"]},
+            {"Field": "Kcal", "Value": "277.36", "Confidence": "High", "Page": 1, "Sources": ["277,36 Kcal"]},
+            {"Field": "Fat", "Value": "0.39", "Confidence": "High", "Page": 1, "Sources": ["FATS 0,39"]},
+            {"Field": "Saturates", "Value": "0.04", "Confidence": "High", "Page": 1, "Sources": ["saturated 0,04"]},
+            {"Field": "Carbs", "Value": "67.79", "Confidence": "High", "Page": 1, "Sources": ["CARBOHYDRATES 67,79"]},
+            {"Field": "Sugars", "Value": "67.51", "Confidence": "High", "Page": 1, "Sources": ["sugars 67,51"]},
+            {"Field": "Fibre", "Value": "0.38", "Confidence": "High", "Page": 1, "Sources": ["FIBER 0,38"]},
+            {"Field": "Protein", "Value": "0.76", "Confidence": "High", "Page": 1, "Sources": ["PROTEINS 0,76"]},
+            {"Field": "Salt", "Value": "0", "Confidence": "High", "Page": 1, "Sources": ["SALT 0 g"]},
         ]
 
     if "bresaola" in joined or "punta d'anca" in joined or "punta d’anca" in joined:
         return [
-            {"Field": "Product_Name", "Value": "BRESAOLA INTERA – PUNTA D'ANCA – VACUUM PACKED", "Confidence": "High", "Page": 1, "Sources": ["BRESAOLA INTERA", "PUNTA D’ANCA", "VACUUM PACKED"]},
-            {"Field": "Product_Description", "Value": "Postero-medial portion of bovine thigh muscle including internal rectus muscle and semimembranosus muscle.", "Confidence": "High", "Page": 1, "Sources": ["Postero-medial portion of bovine thigh muscle", "internal rectus muscle", "semimembranosus muscle"]},
-            {"Field": "Legal_Name", "Value": "Beef bresaola", "Confidence": "High", "Page": 1, "Sources": ["Bresaola di bovino", "Beef bresaola"]},
-            {"Field": "Brand", "Value": "CATTEL", "Confidence": "High", "Page": 1, "Sources": ["Marchio", "Brand", "CATTEL"]},
-            {"Field": "Ingredients_Full_Text", "Value": "Beef, Salt, Dextrose, Natural flavours, Sodium nitrite (E250), Potassium nitrate (E252)", "Confidence": "High", "Page": 1, "Sources": ["Carne bovina", "Beef", "Sale", "Salt", "Destrosio", "Dextrose", "Aromi naturali", "Natural flavours", "sodium nitrite", "E250", "potassium nitrate", "E252"]},
-            {"Field": "Ingredients_With_Percentages", "Value": "No percentages declared", "Confidence": "High", "Page": 1, "Sources": ["Ingredienti", "Ingredients"]},
-            {"Field": "Allergens_Present", "Value": "None declared", "Confidence": "Medium", "Page": 3, "Sources": ["Main allergens in finished product", "Allergeni", "Sì / Yes"]},
-            {"Field": "Allergens_May_Contain", "Value": "None declared", "Confidence": "Medium", "Page": 3, "Sources": ["Presenza in tracce", "cross contamination"]},
-            {"Field": "Energy_kJ_100g", "Value": "665", "Confidence": "High", "Page": 2, "Sources": ["Energy value", "KJ", "665"]},
-            {"Field": "Energy_kcal_100g", "Value": "159", "Confidence": "High", "Page": 2, "Sources": ["Energy value", "Kcal", "159"]},
-            {"Field": "Fat_g_100g", "Value": "4", "Confidence": "High", "Page": 2, "Sources": ["Grassi", "Fat", "4"]},
-            {"Field": "Saturates_g_100g", "Value": "1", "Confidence": "High", "Page": 2, "Sources": ["saturated fatty acids", "1"]},
-            {"Field": "Carbohydrates_g_100g", "Value": "<1", "Confidence": "High", "Page": 2, "Sources": ["Carbohydrates", "< 1"]},
-            {"Field": "Sugars_g_100g", "Value": "<1", "Confidence": "High", "Page": 2, "Sources": ["of which sugars", "< 1"]},
-            {"Field": "Protein_g_100g", "Value": "30", "Confidence": "High", "Page": 2, "Sources": ["Proteins", "30"]},
-            {"Field": "Salt_g_100g", "Value": "3.7", "Confidence": "High", "Page": 2, "Sources": ["Sale", "Salt", "3,7"]},
-            {"Field": "Fibre_g_100g", "Value": "0", "Confidence": "High", "Page": 2, "Sources": ["Fibre", "Fibers", "0"]},
-            {"Field": "Origin_Summary", "Value": "Beef origin: EU and Non-EU", "Confidence": "High", "Page": 1, "Sources": ["Provenienza", "Country of origin", "UE ed EXTRA UE"]},
-            {"Field": "Vegan", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["Carne bovina", "Beef"]},
+            {"Field": "Name", "Value": "BRESAOLA INTERA – PUNTA D'ANCA – VACUUM PACKED", "Confidence": "High", "Page": 1, "Sources": ["BRESAOLA INTERA", "PUNTA D’ANCA", "VACUUM PACKED"]},
+            {"Field": "Ingredients table", "Value": "Beef, Salt, Dextrose, Natural flavours, Sodium nitrite (E250), Potassium nitrate (E252)", "Confidence": "High", "Page": 1, "Sources": ["Carne bovina", "Beef", "Sale", "Salt", "Destrosio", "Dextrose", "Aromi naturali", "Natural flavours", "E250", "E252"]},
+            {"Field": "Celery", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Sedano", "Celery"]},
+            {"Field": "Cereals", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["SENZA GLUTINE", "GLUTENFREI"]},
+            {"Field": "Crustaceans", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Crostacei", "Crustaceans"]},
+            {"Field": "Eggs", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Uova", "Eggs"]},
+            {"Field": "Fish", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Pesce", "Fish"]},
+            {"Field": "Lupin", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Lupini", "Lupins"]},
+            {"Field": "Milk", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Latte", "Milk"]},
+            {"Field": "Molluscs", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Molluschi", "Shellfish"]},
+            {"Field": "Mustard", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Senape", "Mustard"]},
+            {"Field": "Nuts", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Frutta a guscio", "Nuts"]},
+            {"Field": "Peanuts", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Arachidi", "Peanuts"]},
+            {"Field": "Sesame Seeds", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Semi di sesamo", "Sesame"]},
+            {"Field": "Soya", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Soia", "Soy"]},
+            {"Field": "Sulphur dioxide", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["Anidride solforosa", "Sulphites"]},
             {"Field": "Vegetarian", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["Carne bovina", "Beef"]},
-            {"Field": "Coeliac", "Value": "Suitable (claimed)", "Confidence": "High", "Page": 4, "Sources": ["SENZA GLUTINE", "GLUTENFREI"]},
-            {"Field": "Gluten_Free", "Value": "Suitable (claimed)", "Confidence": "High", "Page": 4, "Sources": ["SENZA GLUTINE", "GLUTENFREI"]},
-            {"Field": "Lactose_Free", "Value": "Suitable", "Confidence": "Medium", "Page": 3, "Sources": ["Milk and products thereof", "cross contamination"]},
+            {"Field": "Vegan", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["Carne bovina", "Beef"]},
+            {"Field": "Contains GM Protein/DNA", "Value": "No", "Confidence": "High", "Page": 3, "Sources": ["OGM", "GMO", "NO"]},
+            {"Field": "Palm oil", "Value": "Review Required", "Confidence": "Medium", "Page": 1, "Sources": ["Aromi naturali", "Natural flavours"]},
+            {"Field": "Coeliacs", "Value": "Suitable (claimed)", "Confidence": "High", "Page": 4, "Sources": ["SENZA GLUTINE", "GLUTENFREI"]},
             {"Field": "Halal", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["if raw material has been butchered with Halal rite", "Lot code encoding"]},
             {"Field": "Kosher", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No kosher statement found"]},
             {"Field": "Organic", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No organic claim found"]},
-            {"Field": "Palm_Oil_Free", "Value": "Review Required", "Confidence": "Medium", "Page": 1, "Sources": ["Natural flavours", "Aromi naturali"]},
-            {"Field": "GMO_Free", "Value": "Yes", "Confidence": "High", "Page": 3, "Sources": ["OGM", "GMO", "NO"]},
-            {"Field": "Review_Required", "Value": "Yes", "Confidence": "Medium", "Page": 3, "Sources": ["Allergen matrix blank", "Natural flavours", "cross contamination"]}
+            {"Field": "KJ", "Value": "665", "Confidence": "High", "Page": 2, "Sources": ["Energy value", "KJ", "665"]},
+            {"Field": "Kcal", "Value": "159", "Confidence": "High", "Page": 2, "Sources": ["Energy value", "Kcal", "159"]},
+            {"Field": "Fat", "Value": "4", "Confidence": "High", "Page": 2, "Sources": ["Grassi", "Fat", "4"]},
+            {"Field": "Saturates", "Value": "1", "Confidence": "High", "Page": 2, "Sources": ["saturated fatty acids", "1"]},
+            {"Field": "Carbs", "Value": "<1", "Confidence": "High", "Page": 2, "Sources": ["Carbohydrates", "< 1"]},
+            {"Field": "Sugars", "Value": "<1", "Confidence": "High", "Page": 2, "Sources": ["of which sugars", "< 1"]},
+            {"Field": "Fibre", "Value": "0", "Confidence": "High", "Page": 2, "Sources": ["Fibre", "Fibers", "0"]},
+            {"Field": "Protein", "Value": "30", "Confidence": "High", "Page": 2, "Sources": ["Proteins", "30"]},
+            {"Field": "Salt", "Value": "3.7", "Confidence": "High", "Page": 2, "Sources": ["Sale", "Salt", "3,7"]},
         ]
 
-    return [{"Field": "Product_Name", "Value": "Not extracted", "Confidence": "Low", "Page": 1, "Sources": ["Unknown document format in mock mode"]}]
+    return [{"Field": "Name", "Value": "Not extracted", "Confidence": "Low", "Page": 1, "Sources": ["Unknown document format in mock mode"]}]
 
 
 def render_highlighted_page(pdf_bytes, page_number, source_terms):
@@ -196,120 +222,171 @@ def render_highlighted_page(pdf_bytes, page_number, source_terms):
     return pix.tobytes("png"), hit_count
 
 
-if uploaded_file:
-    current_file_key = uploaded_file.name
+def make_export_row(metadata, edited_values):
+    row = {col: "" for col in EXPORT_COLUMNS}
+    row["SKU"] = metadata["sku"]
+    row["Name"] = metadata["name"]
+    row["Supplier code"] = metadata["supplier_code"]
 
-    if st.session_state.get("current_file_key") != current_file_key:
-        st.session_state["current_file_key"] = current_file_key
-        st.session_state["pdf_viewer_open"] = False
-        st.session_state["selected_row"] = None
+    for field, value in edited_values.items():
+        if field in row:
+            row[field] = value
 
-    pdf_bytes = uploaded_file.read()
-    pages = extract_pdf_text(pdf_bytes)
-    rows = mock_extract(pages)
+    return pd.DataFrame([row], columns=EXPORT_COLUMNS)
 
-    if "pdf_viewer_open" not in st.session_state:
-        st.session_state["pdf_viewer_open"] = False
 
-    if "selected_row" not in st.session_state:
-        st.session_state["selected_row"] = None
+st.title("QA Specification Manager")
+st.caption("Prototype workflow: Add product → upload spec → review extraction → export")
 
-    if st.session_state["pdf_viewer_open"] and st.session_state["selected_row"]:
-        left, right = st.columns([1, 1])
-    else:
-        left = st.container()
-        right = None
+if "mode" not in st.session_state:
+    st.session_state["mode"] = "home"
 
-    with left:
-        st.subheader("Extracted Results")
+if st.session_state["mode"] == "home":
+    st.subheader("Home")
 
-        h1, h2, h3 = st.columns([0.30, 0.52, 0.18])
-        h1.markdown('<div class="table-header">Field</div>', unsafe_allow_html=True)
-        h2.markdown('<div class="table-header">Value</div>', unsafe_allow_html=True)
-        h3.markdown('<div class="table-header">Confidence</div>', unsafe_allow_html=True)
+    search = st.text_input("Search by SKU, product name, supplier code or supplier name")
 
-        edited_rows = []
+    st.info("Search is a placeholder for now. Database connection comes next.")
 
-        for i, row in enumerate(rows):
-            st.markdown('<div class="field-card">', unsafe_allow_html=True)
+    if st.button("Add new product / specification"):
+        st.session_state["mode"] = "add"
+        st.rerun()
 
-            c1, c2, c3 = st.columns([0.30, 0.52, 0.18])
+elif st.session_state["mode"] == "add":
+    if st.button("← Back to home"):
+        st.session_state["mode"] = "home"
+        st.rerun()
 
-            c1.markdown(f"**{row['Field']}**")
+    st.subheader("Add Product / Specification")
 
-            if c2.button(str(row["Value"]), key=f"value_click_{i}", use_container_width=True):
-                st.session_state["selected_row"] = row
-                st.session_state["pdf_viewer_open"] = True
-                st.rerun()
+    sku = st.text_input("SKU / Product Code *")
+    product_name = st.text_input("Product Name *")
+    supplier_code = st.text_input("Supplier Code *")
+    supplier_name = st.text_input("Supplier Name *")
+    uploaded_file = st.file_uploader("Upload PDF Specification *", type=["pdf"])
 
-            c2.markdown(
-                f'<div class="source-text">Source text: {", ".join(row["Sources"])}</div>',
-                unsafe_allow_html=True
+    required_complete = sku.strip() and product_name.strip() and supplier_code.strip() and supplier_name.strip() and uploaded_file
+
+    if not required_complete:
+        st.warning("You must enter SKU, product name, supplier code, supplier name and upload a PDF before extraction/export.")
+
+    if required_complete:
+        metadata = {
+            "sku": sku.strip(),
+            "name": product_name.strip(),
+            "supplier_code": supplier_code.strip(),
+            "supplier_name": supplier_name.strip(),
+            "upload_date": str(date.today())
+        }
+
+        st.success("Required product/supplier/specification details complete.")
+
+        pdf_bytes = uploaded_file.read()
+        pages = extract_pdf_text(pdf_bytes)
+        rows = mock_extract(pages)
+
+        if "pdf_viewer_open" not in st.session_state:
+            st.session_state["pdf_viewer_open"] = False
+
+        if "selected_row" not in st.session_state:
+            st.session_state["selected_row"] = None
+
+        if st.session_state["pdf_viewer_open"] and st.session_state["selected_row"]:
+            left, right = st.columns([1, 1])
+        else:
+            left = st.container()
+            right = None
+
+        edited_values = {}
+
+        with left:
+            st.subheader("Extracted Results")
+
+            st.markdown("### Product / Supplier Details")
+            st.write(f"**SKU:** {metadata['sku']}")
+            st.write(f"**Product Name:** {metadata['name']}")
+            st.write(f"**Supplier Code:** {metadata['supplier_code']}")
+            st.write(f"**Supplier Name:** {metadata['supplier_name']}")
+
+            h1, h2, h3 = st.columns([0.30, 0.52, 0.18])
+            h1.markdown('<div class="table-header">Field</div>', unsafe_allow_html=True)
+            h2.markdown('<div class="table-header">Value</div>', unsafe_allow_html=True)
+            h3.markdown('<div class="table-header">Confidence</div>', unsafe_allow_html=True)
+
+            for i, row in enumerate(rows):
+                st.markdown('<div class="field-card">', unsafe_allow_html=True)
+
+                c1, c2, c3 = st.columns([0.30, 0.52, 0.18])
+
+                c1.markdown(f"**{row['Field']}**")
+
+                if c2.button(str(row["Value"]), key=f"value_click_{i}", use_container_width=True):
+                    st.session_state["selected_row"] = row
+                    st.session_state["pdf_viewer_open"] = True
+                    st.rerun()
+
+                c2.markdown(
+                    f'<div class="source-text">Source text: {", ".join(row["Sources"])}</div>',
+                    unsafe_allow_html=True
+                )
+
+                c3.markdown(
+                    f'<div class="{confidence_class(row["Confidence"])}">{row["Confidence"]}</div>',
+                    unsafe_allow_html=True
+                )
+
+                edited_value = st.text_input(
+                    f"Edit {row['Field']}",
+                    value=row["Value"],
+                    key=f"edit_{i}",
+                    label_visibility="collapsed"
+                )
+
+                edited_values[row["Field"]] = edited_value
+
+                st.markdown('</div>', unsafe_allow_html=True)
+
+            export_df = make_export_row(metadata, edited_values)
+
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine="openpyxl") as writer:
+                export_df.to_excel(writer, index=False, sheet_name="Export")
+
+            st.download_button(
+                "Download Excel in Required Format",
+                output.getvalue(),
+                file_name=f"{metadata['sku']}_spec_export.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-            c3.markdown(
-                f'<div class="{confidence_class(row["Confidence"])}">{row["Confidence"]}</div>',
-                unsafe_allow_html=True
-            )
+            if st.button("Save record (placeholder)"):
+                st.info("Save to Google Sheet/Drive will be added in the next step.")
 
-            edited_value = st.text_input(
-                f"Edit {row['Field']}",
-                value=row["Value"],
-                key=f"edit_{i}",
-                label_visibility="collapsed"
-            )
+        if right is not None:
+            with right:
+                selected = st.session_state["selected_row"]
 
-            st.markdown('</div>', unsafe_allow_html=True)
+                top1, top2 = st.columns([0.7, 0.3])
+                top1.subheader("PDF Source Viewer")
 
-            edited_rows.append({
-                "Field": row["Field"],
-                "Value": edited_value,
-                "Confidence": row["Confidence"],
-                "Source_Page": row["Page"],
-                "Source_Terms": ", ".join(row["Sources"])
-            })
+                if top2.button("Close"):
+                    st.session_state["pdf_viewer_open"] = False
+                    st.session_state["selected_row"] = None
+                    st.rerun()
 
-        export_df = pd.DataFrame(edited_rows)
+                st.info(
+                    f"Selected field: {selected['Field']} | "
+                    f"Page: {selected['Page']} | "
+                    f"Sources: {', '.join(selected['Sources'])}"
+                )
 
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine="openpyxl") as writer:
-            export_df.to_excel(writer, index=False, sheet_name="Extracted Spec")
+                image_bytes, hit_count = render_highlighted_page(
+                    pdf_bytes,
+                    int(selected["Page"]),
+                    selected["Sources"]
+                )
 
-        st.download_button(
-            "Download Excel",
-            output.getvalue(),
-            file_name="extracted_spec.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+                if hit_count == 0:
+                    st.warning("No exact highlight found. Showing source page only.")
 
-    if right is not None:
-        with right:
-            selected = st.session_state["selected_row"]
-
-            top1, top2 = st.columns([0.7, 0.3])
-            top1.subheader("PDF Source Viewer")
-
-            if top2.button("Close"):
-                st.session_state["pdf_viewer_open"] = False
-                st.session_state["selected_row"] = None
-                st.rerun()
-
-            st.info(
-                f"Selected field: {selected['Field']} | "
-                f"Page: {selected['Page']} | "
-                f"Sources: {', '.join(selected['Sources'])}"
-            )
-
-            image_bytes, hit_count = render_highlighted_page(
-                pdf_bytes,
-                int(selected["Page"]),
-                selected["Sources"]
-            )
-
-            if hit_count == 0:
-                st.warning("No exact highlight found. Showing source page only.")
-
-            st.image(image_bytes, use_container_width=True)
-
-else:
-    st.info("Upload a PDF specification to begin.")
+                st.image(image_bytes, use_container_width=True)
