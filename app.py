@@ -133,6 +133,39 @@ def mock_extract(pages):
             {"Field": "GMO_Free", "Value": "Yes", "Confidence": "High", "Page": 1, "Sources": ["It doesn't contain OGM ingredients"]},
         ]
 
+  if "bresaola" in joined or "punta d'anca" in joined or "punta d’anca" in joined:
+        return [
+            {"Field": "Product_Name", "Value": "BRESAOLA INTERA – PUNTA D'ANCA – VACUUM PACKED", "Confidence": "High", "Page": 1, "Sources": ["BRESAOLA INTERA", "PUNTA D’ANCA", "VACUUM PACKED"]},
+            {"Field": "Product_Description", "Value": "Postero-medial portion of bovine thigh muscle including internal rectus muscle and semimembranosus muscle.", "Confidence": "High", "Page": 1, "Sources": ["Postero-medial portion of bovine thigh muscle", "internal rectus muscle", "semimembranosus muscle"]},
+            {"Field": "Legal_Name", "Value": "Beef bresaola", "Confidence": "High", "Page": 1, "Sources": ["Bresaola di bovino", "Beef bresaola"]},
+            {"Field": "Brand", "Value": "CATTEL", "Confidence": "High", "Page": 1, "Sources": ["Marchio", "Brand", "CATTEL"]},
+            {"Field": "Ingredients_Full_Text", "Value": "Beef, Salt, Dextrose, Natural flavours, Sodium nitrite (E250), Potassium nitrate (E252)", "Confidence": "High", "Page": 1, "Sources": ["Carne bovina", "Beef", "Sale", "Salt", "Destrosio", "Dextrose", "Aromi naturali", "Natural flavours", "sodium nitrite", "E250", "potassium nitrate", "E252"]},
+            {"Field": "Ingredients_With_Percentages", "Value": "No percentages declared", "Confidence": "High", "Page": 1, "Sources": ["Ingredienti", "Ingredients"]},
+            {"Field": "Allergens_Present", "Value": "None declared", "Confidence": "Medium", "Page": 3, "Sources": ["Main allergens in finished product", "Allergeni", "Sì / Yes"]},
+            {"Field": "Allergens_May_Contain", "Value": "None declared", "Confidence": "Medium", "Page": 3, "Sources": ["Presenza in tracce", "cross contamination"]},
+            {"Field": "Energy_kJ_100g", "Value": "665", "Confidence": "High", "Page": 2, "Sources": ["Energy value", "KJ", "665"]},
+            {"Field": "Energy_kcal_100g", "Value": "159", "Confidence": "High", "Page": 2, "Sources": ["Energy value", "Kcal", "159"]},
+            {"Field": "Fat_g_100g", "Value": "4", "Confidence": "High", "Page": 2, "Sources": ["Grassi", "Fat", "4"]},
+            {"Field": "Saturates_g_100g", "Value": "1", "Confidence": "High", "Page": 2, "Sources": ["saturated fatty acids", "1"]},
+            {"Field": "Carbohydrates_g_100g", "Value": "<1", "Confidence": "High", "Page": 2, "Sources": ["Carbohydrates", "< 1"]},
+            {"Field": "Sugars_g_100g", "Value": "<1", "Confidence": "High", "Page": 2, "Sources": ["of which sugars", "< 1"]},
+            {"Field": "Protein_g_100g", "Value": "30", "Confidence": "High", "Page": 2, "Sources": ["Proteins", "30"]},
+            {"Field": "Salt_g_100g", "Value": "3.7", "Confidence": "High", "Page": 2, "Sources": ["Sale", "Salt", "3,7"]},
+            {"Field": "Fibre_g_100g", "Value": "0", "Confidence": "High", "Page": 2, "Sources": ["Fibre", "Fibers", "0"]},
+            {"Field": "Origin_Summary", "Value": "Beef origin: EU and Non-EU", "Confidence": "High", "Page": 1, "Sources": ["Provenienza", "Country of origin", "UE ed EXTRA UE"]},
+            {"Field": "Vegan", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["Carne bovina", "Beef"]},
+            {"Field": "Vegetarian", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["Carne bovina", "Beef"]},
+            {"Field": "Coeliac", "Value": "Suitable (claimed)", "Confidence": "High", "Page": 4, "Sources": ["SENZA GLUTINE", "GLUTENFREI"]},
+            {"Field": "Gluten_Free", "Value": "Suitable (claimed)", "Confidence": "High", "Page": 4, "Sources": ["SENZA GLUTINE", "GLUTENFREI"]},
+            {"Field": "Lactose_Free", "Value": "Suitable", "Confidence": "Medium", "Page": 3, "Sources": ["Milk and products thereof", "cross contamination"]},
+            {"Field": "Halal", "Value": "No", "Confidence": "High", "Page": 4, "Sources": ["if raw material has been butchered with Halal rite", "Lot code encoding"]},
+            {"Field": "Kosher", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No kosher statement found"]},
+            {"Field": "Organic", "Value": "No", "Confidence": "High", "Page": 1, "Sources": ["No organic claim found"]},
+            {"Field": "Palm_Oil_Free", "Value": "Review Required", "Confidence": "Medium", "Page": 1, "Sources": ["Natural flavours", "Aromi naturali"]},
+            {"Field": "GMO_Free", "Value": "Yes", "Confidence": "High", "Page": 3, "Sources": ["OGM", "GMO", "NO"]},
+            {"Field": "Review_Required", "Value": "Yes", "Confidence": "Medium", "Page": 3, "Sources": ["Allergen matrix blank", "Natural flavours", "cross contamination"]}
+        ]
+        
     return [{"Field": "Product_Name", "Value": "Not extracted", "Confidence": "Low", "Page": 1, "Sources": [""]}]
 
 
