@@ -48,36 +48,28 @@ body { background-color:#F4F7FA; }
 .kpi-value { color:#111827; font-size:32px; font-weight:900; margin-top:6px; }
 .kpi-note { color:#6B7280; font-size:12px; margin-top:4px; }
 
-.module-link {
-    display:block;
-    text-decoration:none !important;
+.module-card-clean {
     background:white;
     border:1px solid #E5E7EB;
     border-radius:20px;
-    padding:22px 18px;
-    margin-bottom:16px;
-    height:190px;
-    box-sizing:border-box;
+    padding:18px;
+    min-height:210px;
     box-shadow:0 2px 10px rgba(0,0,0,0.06);
-    transition: all 0.18s ease-in-out;
+    margin-bottom:16px;
 }
-.module-link:hover {
-    transform: translateY(-4px);
-    border-color:#2563EB;
-    box-shadow:0 10px 24px rgba(37,99,235,0.18);
-}
-.module-title {
+.module-title-clean {
     text-align:center;
     font-size:22px;
     font-weight:900;
     color:#111827;
     margin-bottom:12px;
 }
-.module-desc {
+.module-desc-clean {
     text-align:center;
     color:#6B7280;
     font-size:14px;
     line-height:1.45;
+    min-height:70px;
 }
 
 .panel-card {
@@ -459,40 +451,18 @@ def kpi_card(label, value, note):
 
 
 def clickable_module(name, desc, mode, icon):
-
     with st.container(border=True):
-
         st.markdown(
             f"""
-            <div style="text-align:center;padding-top:10px;">
-                <div style="
-                    font-size:22px;
-                    font-weight:800;
-                    margin-bottom:12px;
-                ">
-                    {icon}<br>{name}
-                </div>
-
-                <div style="
-                    color:#666;
-                    font-size:14px;
-                    min-height:60px;
-                    padding-left:10px;
-                    padding-right:10px;
-                ">
-                    {desc}
-                </div>
+            <div class="module-card-clean">
+                <div class="module-title-clean">{icon}<br>{name}</div>
+                <div class="module-desc-clean">{desc}</div>
             </div>
             """,
             unsafe_allow_html=True
         )
 
-        if st.button(
-            "Open",
-            key=f"module_{mode}",
-            use_container_width=True,
-            type="primary"
-        ):
+        if st.button("Open", key=f"module_{mode}", use_container_width=True, type="primary"):
             st.session_state["mode"] = mode
             st.rerun()
 
@@ -535,22 +505,29 @@ def dashboard_page():
     </div>
     """, unsafe_allow_html=True)
 
-    search_text = st.text_input("🔍 Search products, suppliers, specifications, complaints, CAPA, audits or communications", placeholder="Example: SKU, supplier code, product name, customer, allergen, complaint ID...")
+    search_text = st.text_input(
+        "🔍 Search products, suppliers, specifications, complaints, CAPA, audits or communications",
+        placeholder="Example: SKU, supplier code, product name, customer, allergen, complaint ID..."
+    )
 
     if search_text:
         st.info("Search results will be activated in Stage 2. This bar will search across all QMS records.")
 
     c1, c2, c3, c4 = st.columns(4)
-    with c1: kpi_card("Total Specifications", "1,284", "Across all suppliers")
-    with c2: kpi_card("Current Workload", "47", "Open tasks across QA")
-    with c3: kpi_card("Email Actions", "23", "Detected from inbox")
-    with c4: kpi_card("Approved Suppliers", "96", "Active supplier base")
+    with c1:
+        kpi_card("Total Specifications", "1,284", "Across all suppliers")
+    with c2:
+        kpi_card("Current Workload", "47", "Open tasks across QA")
+    with c3:
+        kpi_card("Email Actions", "23", "Detected from inbox")
+    with c4:
+        kpi_card("Approved Suppliers", "96", "Active supplier base")
 
     st.markdown('<div class="section-title">Current Workload</div>', unsafe_allow_html=True)
     w1, w2, w3 = st.columns(3)
 
     with w1:
-         st.markdown("""
+        st.markdown("""
         <div class="panel-card">
             <h4>Open Technical Reviews</h4>
             <div class="workload-item"><b>14</b> specification fields requiring QA review</div>
@@ -605,23 +582,23 @@ def dashboard_page():
     with right:
         st.markdown('<div class="section-title">Email Actions</div>', unsafe_allow_html=True)
         st.markdown("""
-<div class="panel-card">
-    <div class="email-action"><b>Complaint notification detected</b><br>Customer email mentions foreign body and attached images.</div>
-    <div class="email-action"><b>Supplier certificate received</b><br>BRC certificate attached. Suggested action: file under supplier approval.</div>
-    <div class="email-action"><b>Customer questionnaire request</b><br>Nutrition/allergen form attached. Suggested action: customer communication.</div>
-    <div class="email-action"><b>Updated specification received</b><br>Supplier has sent a revised PDF specification.</div>
-</div>
-""", unsafe_allow_html=True)
+        <div class="panel-card">
+            <div class="email-action"><b>Complaint notification detected</b><br>Customer email mentions foreign body and attached images.</div>
+            <div class="email-action"><b>Supplier certificate received</b><br>BRC certificate attached. Suggested action: file under supplier approval.</div>
+            <div class="email-action"><b>Customer questionnaire request</b><br>Nutrition/allergen form attached. Suggested action: customer communication.</div>
+            <div class="email-action"><b>Updated specification received</b><br>Supplier has sent a revised PDF specification.</div>
+        </div>
+        """, unsafe_allow_html=True)
 
         st.markdown('<div class="section-title">Recent Activity</div>', unsafe_allow_html=True)
         st.markdown("""
-<div class="panel-card">
-    <div class="activity-item">09:15 — Ground Cumin specification reviewed <span class="status-pill-green">Approved</span></div>
-    <div class="activity-item">09:02 — Pineapple Paste saved to database <span class="status-pill-yellow">Review</span></div>
-    <div class="activity-item">Yesterday — Bresaola specification extracted <span class="status-pill-green">Complete</span></div>
-    <div class="activity-item">Yesterday — Complaint workflow added <span class="status-pill-blue">Planned</span></div>
-</div>
-""", unsafe_allow_html=True)
+        <div class="panel-card">
+            <div class="activity-item">09:15 — Ground Cumin specification reviewed <span class="status-pill-green">Approved</span></div>
+            <div class="activity-item">09:02 — Pineapple Paste saved to database <span class="status-pill-yellow">Review</span></div>
+            <div class="activity-item">Yesterday — Bresaola specification extracted <span class="status-pill-green">Complete</span></div>
+            <div class="activity-item">Yesterday — Complaint workflow added <span class="status-pill-blue">Planned</span></div>
+        </div>
+        """, unsafe_allow_html=True)
 
         st.markdown('<div class="section-title">System Status</div>', unsafe_allow_html=True)
         st.success("Google Sheets database connected")
@@ -844,14 +821,6 @@ def specifications_module():
 
 if "mode" not in st.session_state:
     st.session_state["mode"] = "home"
-
-valid_modes = {
-    "specifications", "complaints", "capa", "supplier_comms",
-    "customer_comms", "environment", "audits", "npd",
-    "kpis", "email_actions"
-}
-
-
 
 if st.session_state["mode"] == "home":
     dashboard_page()
