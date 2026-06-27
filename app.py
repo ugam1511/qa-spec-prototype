@@ -570,7 +570,7 @@ def dashboard_page():
 
     with right:
         st.markdown('<div class="section-title">Email Actions</div>', unsafe_allow_html=True)
-st.markdown("""
+        st.markdown("""
 <div class="panel-card">
     <div class="email-action"><b>Complaint notification detected</b><br>Customer email mentions foreign body and attached images.</div>
     <div class="email-action"><b>Supplier certificate received</b><br>BRC certificate attached. Suggested action: file under supplier approval.</div>
@@ -580,7 +580,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
         st.markdown('<div class="section-title">Recent Activity</div>', unsafe_allow_html=True)
-st.markdown("""
+        st.markdown("""
 <div class="panel-card">
     <div class="activity-item">09:15 — Ground Cumin specification reviewed <span class="status-pill-green">Approved</span></div>
     <div class="activity-item">09:02 — Pineapple Paste saved to database <span class="status-pill-yellow">Review</span></div>
