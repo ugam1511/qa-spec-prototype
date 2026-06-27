@@ -52,24 +52,40 @@ body { background-color:#F4F7FA; }
     background:white;
     border:1px solid #E5E7EB;
     border-radius:20px;
-    padding:18px;
-    min-height:210px;
+    padding:22px 18px;
+    height:210px;
+    box-sizing:border-box;
     box-shadow:0 2px 10px rgba(0,0,0,0.06);
-    margin-bottom:16px;
+    margin-bottom:10px;
+    transition: all 0.18s ease-in-out;
+}
+.module-card-clean:hover {
+    transform: translateY(-4px);
+    border-color:#2563EB;
+    box-shadow:0 10px 24px rgba(37,99,235,0.18);
 }
 .module-title-clean {
     text-align:center;
     font-size:22px;
     font-weight:900;
     color:#111827;
-    margin-bottom:12px;
+    margin-bottom:14px;
 }
 .module-desc-clean {
     text-align:center;
     color:#6B7280;
     font-size:14px;
     line-height:1.45;
-    min-height:70px;
+}
+
+/* Hide the visible Streamlit button but keep it clickable */
+div[data-testid="stButton"] > button[kind="secondary"] {
+    background: transparent;
+    color: transparent;
+    border: 0;
+    height: 0px;
+    padding: 0;
+    margin: 0;
 }
 
 .panel-card {
@@ -451,20 +467,22 @@ def kpi_card(label, value, note):
 
 
 def clickable_module(name, desc, mode, icon):
-    with st.container(border=True):
-        st.markdown(
-            f"""
-            <div class="module-card-clean">
-                <div class="module-title-clean">{icon}<br>{name}</div>
-                <div class="module-desc-clean">{desc}</div>
+    st.markdown(
+        f"""
+        <div class="module-card-clean">
+            <div class="module-title-clean">{icon}<br>{name}</div>
+            <div class="module-desc-clean">{desc}</div>
+            <div style="text-align:center;color:#2563EB;font-weight:800;margin-top:18px;">
+                Click to open →
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-        if st.button("Open", key=f"module_{mode}", use_container_width=True, type="primary"):
-            st.session_state["mode"] = mode
-            st.rerun()
+    if st.button(" ", key=f"module_{mode}", use_container_width=True):
+        st.session_state["mode"] = mode
+        st.rerun()
 
 
 def module_placeholder(title, description, fields, workflows, automation):
