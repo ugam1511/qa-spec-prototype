@@ -56,7 +56,7 @@ body { background-color:#F4F7FA; }
     height:210px;
     box-sizing:border-box;
     box-shadow:0 2px 10px rgba(0,0,0,0.06);
-    margin-bottom:10px;
+    margin-bottom:4px;
     transition: all 0.18s ease-in-out;
 }
 .module-card-clean:hover {
@@ -472,9 +472,6 @@ def clickable_module(name, desc, mode, icon):
         <div class="module-card-clean">
             <div class="module-title-clean">{icon}<br>{name}</div>
             <div class="module-desc-clean">{desc}</div>
-            <div style="text-align:center;color:#2563EB;font-weight:800;margin-top:18px;">
-                Click to open →
-            </div>
         </div>
         """,
         unsafe_allow_html=True
