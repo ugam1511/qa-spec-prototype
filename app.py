@@ -7,20 +7,165 @@ import uuid
 import gspread
 from google.oauth2.service_account import Credentials
 
+# ============================================================
+# 1. PAGE CONFIG + STYLING
+# ============================================================
+
 st.set_page_config(page_title="SpecStream", layout="wide")
 
 st.markdown("""
 <style>
-.module-card {border:1px solid #d9dee5;border-radius:14px;padding:18px;margin-bottom:14px;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,0.06);}
-.field-card {border:1px solid #d9dee5;border-radius:12px;padding:14px;margin-bottom:12px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
-.table-header {font-weight:700;background-color:#eef1f5;padding:10px;border-radius:8px;margin-bottom:10px;}
-.source-text {font-size:12px;color:#666;}
-.conf-high {border:1px solid #ccc;padding:7px;border-radius:7px;text-align:center;font-weight:bold;}
-.conf-medium {background-color:#fff3cd;color:#856404;border:1px solid #ffeeba;padding:7px;border-radius:7px;text-align:center;font-weight:bold;}
-.conf-low {background-color:#f8d7da;color:#721c24;border:1px solid #f5c6cb;padding:7px;border-radius:7px;text-align:center;font-weight:bold;}
-.save-card {border:1px solid #badbcc;background-color:#d1e7dd;color:#0f5132;border-radius:12px;padding:18px;margin-top:18px;}
+body {
+    background-color: #F4F7FA;
+}
+.main-title {
+    font-size: 38px;
+    font-weight: 800;
+    color: #111827;
+    margin-bottom: 0px;
+}
+.subtitle {
+    font-size: 16px;
+    color: #6B7280;
+    margin-bottom: 20px;
+}
+.hero-card {
+    background: linear-gradient(135deg, #1F2937 0%, #2563EB 100%);
+    color: white;
+    padding: 28px;
+    border-radius: 18px;
+    margin-bottom: 24px;
+}
+.hero-card h1 {
+    color: white;
+    margin-bottom: 4px;
+}
+.hero-card p {
+    color: #E5E7EB;
+    font-size: 16px;
+}
+.kpi-card {
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.kpi-label {
+    color: #6B7280;
+    font-size: 13px;
+    font-weight: 600;
+}
+.kpi-value {
+    color: #111827;
+    font-size: 30px;
+    font-weight: 800;
+}
+.kpi-note {
+    font-size: 12px;
+    color: #6B7280;
+}
+.module-card {
+    border:1px solid #E5E7EB;
+    border-radius:16px;
+    padding:18px;
+    margin-bottom:14px;
+    background:#fff;
+    box-shadow:0 2px 8px rgba(0,0,0,0.05);
+}
+.module-card h3 {
+    margin-bottom: 4px;
+}
+.field-card {
+    border:1px solid #d9dee5;
+    border-radius:12px;
+    padding:14px;
+    margin-bottom:12px;
+    background:#fff;
+    box-shadow:0 1px 4px rgba(0,0,0,0.05);
+}
+.table-header {
+    font-weight:700;
+    background-color:#eef1f5;
+    padding:10px;
+    border-radius:8px;
+    margin-bottom:10px;
+}
+.source-text {
+    font-size:12px;
+    color:#666;
+}
+.conf-high {
+    border:1px solid #ccc;
+    padding:7px;
+    border-radius:7px;
+    text-align:center;
+    font-weight:bold;
+}
+.conf-medium {
+    background-color:#fff3cd;
+    color:#856404;
+    border:1px solid #ffeeba;
+    padding:7px;
+    border-radius:7px;
+    text-align:center;
+    font-weight:bold;
+}
+.conf-low {
+    background-color:#f8d7da;
+    color:#721c24;
+    border:1px solid #f5c6cb;
+    padding:7px;
+    border-radius:7px;
+    text-align:center;
+    font-weight:bold;
+}
+.save-card {
+    border:1px solid #badbcc;
+    background-color:#d1e7dd;
+    color:#0f5132;
+    border-radius:12px;
+    padding:18px;
+    margin-top:18px;
+}
+.activity-card {
+    background:white;
+    border:1px solid #E5E7EB;
+    border-radius:16px;
+    padding:18px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom:14px;
+}
+.status-pill-green {
+    background:#DCFCE7;
+    color:#166534;
+    padding:5px 10px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:700;
+}
+.status-pill-yellow {
+    background:#FEF3C7;
+    color:#92400E;
+    padding:5px 10px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:700;
+}
+.status-pill-blue {
+    background:#DBEAFE;
+    color:#1E40AF;
+    padding:5px 10px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:700;
+}
 </style>
 """, unsafe_allow_html=True)
+
+# ============================================================
+# 2. CONSTANTS
+# ============================================================
 
 EXPORT_COLUMNS = [
     "SKU", "Name", "Supplier code", "Celery", "Cereals", "Crustaceans", "Eggs", "Fish", "Lupin", "Milk",
@@ -36,6 +181,9 @@ ALLERGEN_FIELDS = [
     "Molluscs", "Mustard", "Nuts", "Peanuts", "Sesame Seeds", "Soya", "Sulphur dioxide"
 ]
 
+# ============================================================
+# 3. GOOGLE SHEETS FUNCTIONS
+# ============================================================
 
 def get_google_sheet():
     scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -51,6 +199,9 @@ def append_to_sheet(tab_name, row_dict, sheet=None):
     headers = ws.row_values(1)
     ws.append_row([row_dict.get(h, "") for h in headers], value_input_option="USER_ENTERED")
 
+# ============================================================
+# 4. EXTRACTION FUNCTIONS
+# ============================================================
 
 def confidence_class(conf):
     return {"High": "conf-high", "Medium": "conf-medium", "Low": "conf-low"}.get(conf, "conf-high")
@@ -68,6 +219,7 @@ def row(field, value, confidence="High", page=1, sources=None):
 def normalise_rows(raw_rows):
     by_field = {r["Field"]: r for r in raw_rows}
     final = []
+
     for field in DISPLAY_FIELDS:
         if field in by_field:
             final.append(by_field[field])
@@ -75,6 +227,7 @@ def normalise_rows(raw_rows):
             final.append(row(field, "No", "Medium", 1, ["No evidence extracted in mock mode"]))
         else:
             final.append(row(field, "", "Low", 1, ["Field not extracted in mock mode"]))
+
     return final
 
 
@@ -205,6 +358,9 @@ def render_highlighted_page(pdf_bytes, page_number, source_terms):
     pix = page.get_pixmap(matrix=fitz.Matrix(1.7, 1.7), alpha=False)
     return pix.tobytes("png"), hit_count
 
+# ============================================================
+# 5. SAVE + EXPORT FUNCTIONS
+# ============================================================
 
 def make_export_row(metadata, edited_values):
     export_row = {col: "" for col in EXPORT_COLUMNS}
@@ -281,6 +437,26 @@ def save_to_google_sheets(metadata, edited_values, rows, uploaded_filename):
         "fields_requiring_review": medium_low_count
     }
 
+# ============================================================
+# 6. REUSABLE UI COMPONENTS
+# ============================================================
+
+def kpi_card(label, value, note):
+    st.markdown(
+        f"""
+        <div class="kpi-card">
+            <div class="kpi-label">{label}</div>
+            <div class="kpi-value">{value}</div>
+            <div class="kpi-note">{note}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+def activity_item(time, text, status=""):
+    st.markdown(f"**{time}** — {text} {status}")
+
 
 def module_placeholder(title, description, fields):
     if st.button("← Back to dashboard"):
@@ -305,6 +481,97 @@ def module_placeholder(title, description, fields):
 - Export reports
 - AI assistant support in future
 """)
+
+# ============================================================
+# 7. PAGE FUNCTIONS
+# ============================================================
+
+def dashboard_page():
+    st.markdown(
+        """
+        <div class="hero-card">
+            <h1>SpecStream</h1>
+            <p>Food Quality Management System — specifications, complaints, quality events, supplier communications, audits and NPD in one connected platform.</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        kpi_card("Total Specifications", "1,284", "Across all suppliers")
+    with c2:
+        kpi_card("Pending Reviews", "14", "Require technical approval")
+    with c3:
+        kpi_card("Open Quality Events", "18", "CAPA, holds, recalls")
+    with c4:
+        kpi_card("Approved Suppliers", "96", "Active supplier base")
+
+    st.markdown("### Quick Actions")
+    q1, q2, q3, q4 = st.columns(4)
+    if q1.button("＋ Upload Specification", use_container_width=True):
+        st.session_state["mode"] = "specifications"
+        st.rerun()
+    if q2.button("🔎 Search Records", use_container_width=True):
+        st.info("Search will be activated in Stage 2.")
+    if q3.button("📧 Mail Capture", use_container_width=True):
+        st.info("Mail Capture prototype will be added after dashboard/search.")
+    if q4.button("📊 Reports", use_container_width=True):
+        st.info("Reports module planned for pilot phase.")
+
+    left, right = st.columns([0.62, 0.38])
+
+    with left:
+        st.markdown("### QA Modules")
+
+        modules = [
+            ("Specifications", "AI-assisted specification extraction, review, evidence checking and export.", "specifications"),
+            ("Complaints", "Customer complaint records, evidence, product links, supplier links and status tracking.", "complaints"),
+            ("CAPA / Quality Events", "Internal incidents, recalls, date extensions, holds, concessions and quality events.", "capa"),
+            ("Supplier Communications", "Supplier emails, certificates, specification requests, contacts and technical communication history.", "supplier_comms"),
+            ("Customer Communications", "Customer requests, certificates, forms, questionnaires and recurring technical responses.", "customer_comms"),
+            ("Environmental Monitoring", "Sampling schedules, results, failures, retests, trends and corrective actions.", "environment"),
+            ("Internal Audits", "Audit schedules, checklists, findings, non-conformances and closures.", "audits"),
+            ("NPD", "New product development workflow, trials, specs, artwork, allergen/nutrition checks and launch approvals.", "npd"),
+        ]
+
+        for name, desc, mode in modules:
+            st.markdown('<div class="module-card">', unsafe_allow_html=True)
+            c1, c2 = st.columns([0.75, 0.25])
+            c1.markdown(f"### {name}")
+            c1.write(desc)
+            if c2.button(f"Open", key=f"open_{mode}", use_container_width=True):
+                st.session_state["mode"] = mode
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    with right:
+        st.markdown("### Recent Activity")
+        st.markdown('<div class="activity-card">', unsafe_allow_html=True)
+        activity_item("09:15", "Ground Cumin specification reviewed", '<span class="status-pill-green">Approved</span>')
+        activity_item("09:02", "Pineapple Paste saved to database", '<span class="status-pill-yellow">Review</span>')
+        activity_item("Yesterday", "Bresaola specification extracted", '<span class="status-pill-green">Complete</span>')
+        activity_item("Yesterday", "Complaint workflow added to roadmap", '<span class="status-pill-blue">Planned</span>')
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown("### Pending Reviews")
+        st.markdown('<div class="activity-card">', unsafe_allow_html=True)
+        st.write("• Pineapple Paste — Palm oil review")
+        st.write("• Ground Cumin — Peanut cross-contamination")
+        st.write("• Bresaola — Natural flavours review")
+        st.write("• 11 other specification fields requiring QA check")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown("### Specification Status")
+        status_df = pd.DataFrame({
+            "Status": ["Approved", "Pending Review", "Requires Update", "Expired"],
+            "Count": [984, 214, 61, 25]
+        })
+        st.bar_chart(status_df.set_index("Status"))
+
+        st.markdown("### System Status")
+        st.success("Google Sheets database connected")
+        st.info("SharePoint, Microsoft login and AI API planned for production pilot")
 
 
 def specifications_module():
@@ -443,38 +710,15 @@ def specifications_module():
                 st.warning("No exact highlight found. Showing source page only.")
             st.image(image_bytes, use_container_width=True)
 
-
-st.title("SpecStream")
-st.caption("Food QA Management System Prototype")
+# ============================================================
+# 8. APP ROUTER
+# ============================================================
 
 if "mode" not in st.session_state:
     st.session_state["mode"] = "home"
 
 if st.session_state["mode"] == "home":
-    st.subheader("Dashboard")
-    st.write("SpecStream is designed as a wider QA management system. The Specifications module is currently functional; other modules are shown as planned workflows.")
-
-    modules = [
-        ("Specifications", "AI-assisted specification extraction, review, evidence checking and export.", "specifications"),
-        ("Complaints", "Customer complaint records, evidence, product links, supplier links and status tracking.", "complaints"),
-        ("CAPA / Quality Events", "Internal incidents, recalls, date extensions, holds, concessions and quality events.", "capa"),
-        ("Supplier Communications", "Supplier emails, certificates, specification requests, contacts and technical communication history.", "supplier_comms"),
-        ("Customer Communications", "Customer requests, certificates, forms, questionnaires and recurring technical responses.", "customer_comms"),
-        ("Environmental Monitoring", "Sampling schedules, results, failures, retests, trends and corrective actions.", "environment"),
-        ("Internal Audits", "Audit schedules, checklists, findings, non-conformances and closures.", "audits"),
-        ("NPD", "New product development workflow, trials, specs, artwork, allergen/nutrition checks and launch approvals.", "npd"),
-    ]
-
-    for name, desc, mode in modules:
-        with st.container():
-            st.markdown('<div class="module-card">', unsafe_allow_html=True)
-            c1, c2 = st.columns([0.75, 0.25])
-            c1.markdown(f"### {name}")
-            c1.write(desc)
-            if c2.button(f"Open {name}", key=f"open_{mode}"):
-                st.session_state["mode"] = mode
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+    dashboard_page()
 
 elif st.session_state["mode"] == "specifications":
     specifications_module()
