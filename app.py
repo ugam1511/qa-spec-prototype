@@ -451,11 +451,16 @@ def kpi_card(label, value, note):
 
 def clickable_module(name, desc, mode, icon):
     st.markdown('<div class="module-card">', unsafe_allow_html=True)
-    st.markdown(f"<div class='module-title'>{icon} {name}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='module-desc'>{desc}</div>", unsafe_allow_html=True)
-    if st.button(f"Open {name}", key=f"click_{mode}", use_container_width=True):
+
+    if st.button(f"{icon}  {name}", key=f"click_{mode}", use_container_width=True):
         st.session_state["mode"] = mode
         st.rerun()
+
+    st.markdown(
+        f"<div class='module-desc'>{desc}</div>",
+        unsafe_allow_html=True
+    )
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 
