@@ -15,67 +15,107 @@ st.set_page_config(page_title="SpecStream", layout="wide")
 
 st.markdown("""
 <style>
-body {
-    background-color: #F4F7FA;
-}
-.main-title {
-    font-size: 38px;
-    font-weight: 800;
-    color: #111827;
-    margin-bottom: 0px;
-}
-.subtitle {
-    font-size: 16px;
-    color: #6B7280;
-    margin-bottom: 20px;
-}
+body { background-color:#F4F7FA; }
+
 .hero-card {
-    background: linear-gradient(135deg, #1F2937 0%, #2563EB 100%);
-    color: white;
-    padding: 28px;
-    border-radius: 18px;
-    margin-bottom: 24px;
+    background: linear-gradient(135deg, #111827 0%, #1D4ED8 100%);
+    color:white;
+    padding:30px;
+    border-radius:20px;
+    margin-bottom:22px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.12);
 }
-.hero-card h1 {
-    color: white;
-    margin-bottom: 4px;
+.hero-card h1 { color:white; margin-bottom:4px; font-size:40px; }
+.hero-card p { color:#E5E7EB; font-size:16px; }
+
+.section-title {
+    font-size:22px;
+    font-weight:800;
+    color:#111827;
+    margin-top:18px;
+    margin-bottom:10px;
 }
-.hero-card p {
-    color: #E5E7EB;
-    font-size: 16px;
-}
+
 .kpi-card {
-    background: white;
-    border: 1px solid #E5E7EB;
-    border-radius: 16px;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    background:white;
+    border:1px solid #E5E7EB;
+    border-radius:18px;
+    padding:20px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.06);
+    min-height:120px;
 }
-.kpi-label {
-    color: #6B7280;
-    font-size: 13px;
-    font-weight: 600;
-}
-.kpi-value {
-    color: #111827;
-    font-size: 30px;
-    font-weight: 800;
-}
-.kpi-note {
-    font-size: 12px;
-    color: #6B7280;
-}
+.kpi-label { color:#6B7280; font-size:13px; font-weight:700; }
+.kpi-value { color:#111827; font-size:32px; font-weight:900; margin-top:6px; }
+.kpi-note { color:#6B7280; font-size:12px; margin-top:4px; }
+
 .module-card {
     border:1px solid #E5E7EB;
-    border-radius:16px;
-    padding:18px;
+    border-radius:18px;
+    padding:20px;
     margin-bottom:14px;
-    background:#fff;
-    box-shadow:0 2px 8px rgba(0,0,0,0.05);
+    background:white;
+    box-shadow:0 2px 10px rgba(0,0,0,0.06);
 }
-.module-card h3 {
-    margin-bottom: 4px;
+.module-card:hover {
+    border-color:#2563EB;
+    box-shadow:0 6px 18px rgba(37,99,235,0.15);
 }
+.module-title {
+    font-size:20px;
+    font-weight:850;
+    color:#111827;
+}
+.module-desc {
+    color:#6B7280;
+    font-size:14px;
+    margin-top:4px;
+}
+
+.panel-card {
+    background:white;
+    border:1px solid #E5E7EB;
+    border-radius:18px;
+    padding:18px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.06);
+    margin-bottom:16px;
+}
+
+.workload-item {
+    border-left:5px solid #2563EB;
+    padding:10px 12px;
+    margin-bottom:10px;
+    background:#F9FAFB;
+    border-radius:10px;
+}
+.email-action {
+    border-left:5px solid #F59E0B;
+    padding:10px 12px;
+    margin-bottom:10px;
+    background:#FFFBEB;
+    border-radius:10px;
+}
+.activity-item {
+    padding:9px 0;
+    border-bottom:1px solid #E5E7EB;
+}
+
+.status-pill-green {
+    background:#DCFCE7; color:#166534; padding:5px 10px;
+    border-radius:999px; font-size:12px; font-weight:800;
+}
+.status-pill-yellow {
+    background:#FEF3C7; color:#92400E; padding:5px 10px;
+    border-radius:999px; font-size:12px; font-weight:800;
+}
+.status-pill-red {
+    background:#FEE2E2; color:#991B1B; padding:5px 10px;
+    border-radius:999px; font-size:12px; font-weight:800;
+}
+.status-pill-blue {
+    background:#DBEAFE; color:#1E40AF; padding:5px 10px;
+    border-radius:999px; font-size:12px; font-weight:800;
+}
+
 .field-card {
     border:1px solid #d9dee5;
     border-radius:12px;
@@ -91,34 +131,18 @@ body {
     border-radius:8px;
     margin-bottom:10px;
 }
-.source-text {
-    font-size:12px;
-    color:#666;
-}
+.source-text { font-size:12px; color:#666; }
 .conf-high {
-    border:1px solid #ccc;
-    padding:7px;
-    border-radius:7px;
-    text-align:center;
-    font-weight:bold;
+    border:1px solid #ccc; padding:7px; border-radius:7px;
+    text-align:center; font-weight:bold;
 }
 .conf-medium {
-    background-color:#fff3cd;
-    color:#856404;
-    border:1px solid #ffeeba;
-    padding:7px;
-    border-radius:7px;
-    text-align:center;
-    font-weight:bold;
+    background-color:#fff3cd; color:#856404; border:1px solid #ffeeba;
+    padding:7px; border-radius:7px; text-align:center; font-weight:bold;
 }
 .conf-low {
-    background-color:#f8d7da;
-    color:#721c24;
-    border:1px solid #f5c6cb;
-    padding:7px;
-    border-radius:7px;
-    text-align:center;
-    font-weight:bold;
+    background-color:#f8d7da; color:#721c24; border:1px solid #f5c6cb;
+    padding:7px; border-radius:7px; text-align:center; font-weight:bold;
 }
 .save-card {
     border:1px solid #badbcc;
@@ -128,37 +152,13 @@ body {
     padding:18px;
     margin-top:18px;
 }
-.activity-card {
+.placeholder-box {
     background:white;
     border:1px solid #E5E7EB;
-    border-radius:16px;
-    padding:18px;
-    box-shadow:0 2px 8px rgba(0,0,0,0.05);
-    margin-bottom:14px;
-}
-.status-pill-green {
-    background:#DCFCE7;
-    color:#166534;
-    padding:5px 10px;
-    border-radius:999px;
-    font-size:12px;
-    font-weight:700;
-}
-.status-pill-yellow {
-    background:#FEF3C7;
-    color:#92400E;
-    padding:5px 10px;
-    border-radius:999px;
-    font-size:12px;
-    font-weight:700;
-}
-.status-pill-blue {
-    background:#DBEAFE;
-    color:#1E40AF;
-    padding:5px 10px;
-    border-radius:999px;
-    font-size:12px;
-    font-weight:700;
+    border-radius:18px;
+    padding:20px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.06);
+    margin-bottom:16px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -219,7 +219,6 @@ def row(field, value, confidence="High", page=1, sources=None):
 def normalise_rows(raw_rows):
     by_field = {r["Field"]: r for r in raw_rows}
     final = []
-
     for field in DISPLAY_FIELDS:
         if field in by_field:
             final.append(by_field[field])
@@ -227,7 +226,6 @@ def normalise_rows(raw_rows):
             final.append(row(field, "No", "Medium", 1, ["No evidence extracted in mock mode"]))
         else:
             final.append(row(field, "", "Low", 1, ["Field not extracted in mock mode"]))
-
     return final
 
 
@@ -442,136 +440,218 @@ def save_to_google_sheets(metadata, edited_values, rows, uploaded_filename):
 # ============================================================
 
 def kpi_card(label, value, note):
-    st.markdown(
-        f"""
-        <div class="kpi-card">
-            <div class="kpi-label">{label}</div>
-            <div class="kpi-value">{value}</div>
-            <div class="kpi-note">{note}</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.markdown(f"""
+    <div class="kpi-card">
+        <div class="kpi-label">{label}</div>
+        <div class="kpi-value">{value}</div>
+        <div class="kpi-note">{note}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
-def activity_item(time, text, status=""):
-    st.markdown(f"**{time}** — {text} {status}")
+def clickable_module(name, desc, mode, icon):
+    st.markdown('<div class="module-card">', unsafe_allow_html=True)
+    st.markdown(f"<div class='module-title'>{icon} {name}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='module-desc'>{desc}</div>", unsafe_allow_html=True)
+    if st.button(f"Open {name}", key=f"click_{mode}", use_container_width=True):
+        st.session_state["mode"] = mode
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
-def module_placeholder(title, description, fields):
+def module_placeholder(title, description, fields, workflows, automation):
     if st.button("← Back to dashboard"):
         st.session_state["mode"] = "home"
         st.rerun()
 
     st.title(title)
     st.write(description)
-    st.info("This module is included in the SpecStream roadmap. The full workflow will be built after the pilot is approved.")
 
-    st.subheader("Planned record fields")
+    st.markdown('<div class="placeholder-box">', unsafe_allow_html=True)
+    st.subheader("What this module will manage")
+    for item in workflows:
+        st.write(f"• {item}")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="placeholder-box">', unsafe_allow_html=True)
+    st.subheader("Core fields")
     for f in fields:
         st.text_input(f, disabled=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    st.subheader("Planned capabilities")
-    st.markdown("""
-- Search and filter records
-- Attach emails, PDFs, photos, videos and evidence
-- Link to products, suppliers and specifications
-- Track open/closed status
-- Maintain full communication history
-- Export reports
-- AI assistant support in future
-""")
+    st.markdown('<div class="placeholder-box">', unsafe_allow_html=True)
+    st.subheader("Future automation")
+    for item in automation:
+        st.write(f"• {item}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ============================================================
 # 7. PAGE FUNCTIONS
 # ============================================================
 
 def dashboard_page():
-    st.markdown(
-        """
-        <div class="hero-card">
-            <h1>SpecStream</h1>
-            <p>Food Quality Management System — specifications, complaints, quality events, supplier communications, audits and NPD in one connected platform.</p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.markdown("""
+    <div class="hero-card">
+        <h1>SpecStream</h1>
+        <p>Food Quality Management System — specifications, complaints, quality events, communications, audits, environmental monitoring and NPD in one connected platform.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    search_text = st.text_input("🔍 Search products, suppliers, specifications, complaints, CAPA, audits or communications", placeholder="Example: SKU, supplier code, product name, customer, allergen, complaint ID...")
+
+    if search_text:
+        st.info("Search results will be activated in Stage 2. This bar will search across all QMS records.")
 
     c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        kpi_card("Total Specifications", "1,284", "Across all suppliers")
-    with c2:
-        kpi_card("Pending Reviews", "14", "Require technical approval")
-    with c3:
-        kpi_card("Open Quality Events", "18", "CAPA, holds, recalls")
-    with c4:
-        kpi_card("Approved Suppliers", "96", "Active supplier base")
+    with c1: kpi_card("Total Specifications", "1,284", "Across all suppliers")
+    with c2: kpi_card("Current Workload", "47", "Open tasks across QA")
+    with c3: kpi_card("Email Actions", "23", "Detected from inbox")
+    with c4: kpi_card("Approved Suppliers", "96", "Active supplier base")
 
-    st.markdown("### Quick Actions")
-    q1, q2, q3, q4 = st.columns(4)
-    if q1.button("＋ Upload Specification", use_container_width=True):
-        st.session_state["mode"] = "specifications"
-        st.rerun()
-    if q2.button("🔎 Search Records", use_container_width=True):
-        st.info("Search will be activated in Stage 2.")
-    if q3.button("📧 Mail Capture", use_container_width=True):
-        st.info("Mail Capture prototype will be added after dashboard/search.")
-    if q4.button("📊 Reports", use_container_width=True):
-        st.info("Reports module planned for pilot phase.")
+    st.markdown('<div class="section-title">Current Workload</div>', unsafe_allow_html=True)
+    w1, w2, w3 = st.columns(3)
+
+    with w1:
+        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
+        st.markdown("#### Open Technical Reviews")
+        st.markdown('<div class="workload-item"><b>14</b> specification fields requiring QA review</div>', unsafe_allow_html=True)
+        st.markdown('<div class="workload-item"><b>7</b> supplier documents due for renewal</div>', unsafe_allow_html=True)
+        st.markdown('<div class="workload-item"><b>3</b> formulations requiring confirmation</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with w2:
+        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
+        st.markdown("#### Open Quality Records")
+        st.markdown('<div class="workload-item"><b>6</b> open complaints</div>', unsafe_allow_html=True)
+        st.markdown('<div class="workload-item"><b>5</b> open CAPA / quality events</div>', unsafe_allow_html=True)
+        st.markdown('<div class="workload-item"><b>4</b> internal audit actions due</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with w3:
+        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
+        st.markdown("#### Supplier / Customer Follow-up")
+        st.markdown('<div class="workload-item"><b>9</b> supplier responses awaiting review</div>', unsafe_allow_html=True)
+        st.markdown('<div class="workload-item"><b>4</b> customer forms awaiting completion</div>', unsafe_allow_html=True)
+        st.markdown('<div class="workload-item"><b>2</b> certificates requested by customers</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     left, right = st.columns([0.62, 0.38])
 
     with left:
-        st.markdown("### QA Modules")
+        st.markdown('<div class="section-title">QMS Modules</div>', unsafe_allow_html=True)
 
         modules = [
-            ("Specifications", "AI-assisted specification extraction, review, evidence checking and export.", "specifications"),
-            ("Complaints", "Customer complaint records, evidence, product links, supplier links and status tracking.", "complaints"),
-            ("CAPA / Quality Events", "Internal incidents, recalls, date extensions, holds, concessions and quality events.", "capa"),
-            ("Supplier Communications", "Supplier emails, certificates, specification requests, contacts and technical communication history.", "supplier_comms"),
-            ("Customer Communications", "Customer requests, certificates, forms, questionnaires and recurring technical responses.", "customer_comms"),
-            ("Environmental Monitoring", "Sampling schedules, results, failures, retests, trends and corrective actions.", "environment"),
-            ("Internal Audits", "Audit schedules, checklists, findings, non-conformances and closures.", "audits"),
-            ("NPD", "New product development workflow, trials, specs, artwork, allergen/nutrition checks and launch approvals.", "npd"),
+            ("Specifications", "AI-assisted specification extraction, review, evidence checking and export.", "specifications", "📄"),
+            ("Complaints", "Customer complaint records, evidence, product links, supplier links and status tracking.", "complaints", "⚠️"),
+            ("CAPA / Quality Events", "Internal incidents, recalls, date extensions, holds, concessions and quality events.", "capa", "✅"),
+            ("Supplier Communications", "Supplier emails, certificates, specification requests, contacts and technical communication history.", "supplier_comms", "🏭"),
+            ("Customer Communications", "Customer requests, certificates, forms, questionnaires and recurring technical responses.", "customer_comms", "🤝"),
+            ("Environmental Monitoring", "Sampling schedules, results, failures, retests, trends and corrective actions.", "environment", "🧪"),
+            ("Internal Audits", "Audit schedules, checklists, findings, non-conformances and closures.", "audits", "📋"),
+            ("NPD", "New product development workflow, trials, specs, artwork, allergen/nutrition checks and launch approvals.", "npd", "🚀"),
+            ("KPI Trends", "Management view of trends, open workload, supplier performance and quality indicators.", "kpis", "📊"),
+            ("Email Actions", "Future Outlook-linked inbox scan that classifies emails into actionable QMS tasks.", "email_actions", "📧"),
         ]
 
-        for name, desc, mode in modules:
-            st.markdown('<div class="module-card">', unsafe_allow_html=True)
-            c1, c2 = st.columns([0.75, 0.25])
-            c1.markdown(f"### {name}")
-            c1.write(desc)
-            if c2.button(f"Open", key=f"open_{mode}", use_container_width=True):
-                st.session_state["mode"] = mode
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+        mcols = st.columns(2)
+        for idx, (name, desc, mode, icon) in enumerate(modules):
+            with mcols[idx % 2]:
+                clickable_module(name, desc, mode, icon)
 
     with right:
-        st.markdown("### Recent Activity")
-        st.markdown('<div class="activity-card">', unsafe_allow_html=True)
-        activity_item("09:15", "Ground Cumin specification reviewed", '<span class="status-pill-green">Approved</span>')
-        activity_item("09:02", "Pineapple Paste saved to database", '<span class="status-pill-yellow">Review</span>')
-        activity_item("Yesterday", "Bresaola specification extracted", '<span class="status-pill-green">Complete</span>')
-        activity_item("Yesterday", "Complaint workflow added to roadmap", '<span class="status-pill-blue">Planned</span>')
+        st.markdown('<div class="section-title">Email Actions</div>', unsafe_allow_html=True)
+        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
+        st.markdown('<div class="email-action"><b>Complaint notification detected</b><br>Customer email mentions foreign body and attached images.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="email-action"><b>Supplier certificate received</b><br>BRC certificate attached. Suggested action: file under supplier approval.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="email-action"><b>Customer questionnaire request</b><br>Nutrition/allergen form attached. Suggested action: customer communication.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="email-action"><b>Updated specification received</b><br>Supplier has sent a revised PDF specification.</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("### Pending Reviews")
-        st.markdown('<div class="activity-card">', unsafe_allow_html=True)
-        st.write("• Pineapple Paste — Palm oil review")
-        st.write("• Ground Cumin — Peanut cross-contamination")
-        st.write("• Bresaola — Natural flavours review")
-        st.write("• 11 other specification fields requiring QA check")
+        st.markdown('<div class="section-title">Recent Activity</div>', unsafe_allow_html=True)
+        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
+        st.markdown('<div class="activity-item">09:15 — Ground Cumin specification reviewed <span class="status-pill-green">Approved</span></div>', unsafe_allow_html=True)
+        st.markdown('<div class="activity-item">09:02 — Pineapple Paste saved to database <span class="status-pill-yellow">Review</span></div>', unsafe_allow_html=True)
+        st.markdown('<div class="activity-item">Yesterday — Bresaola specification extracted <span class="status-pill-green">Complete</span></div>', unsafe_allow_html=True)
+        st.markdown('<div class="activity-item">Yesterday — Complaint workflow added <span class="status-pill-blue">Planned</span></div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("### Specification Status")
-        status_df = pd.DataFrame({
-            "Status": ["Approved", "Pending Review", "Requires Update", "Expired"],
-            "Count": [984, 214, 61, 25]
-        })
-        st.bar_chart(status_df.set_index("Status"))
-
-        st.markdown("### System Status")
+        st.markdown('<div class="section-title">System Status</div>', unsafe_allow_html=True)
         st.success("Google Sheets database connected")
-        st.info("SharePoint, Microsoft login and AI API planned for production pilot")
+        st.info("Production plan: Microsoft login, SharePoint, Azure SQL and approved AI API")
+
+
+def kpi_page():
+    if st.button("← Back to dashboard"):
+        st.session_state["mode"] = "home"
+        st.rerun()
+
+    st.title("KPI Trends")
+    st.write("This page will become the management dashboard for QA performance, supplier trends and workload visibility.")
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+        st.subheader("Complaints by Month")
+        df = pd.DataFrame({"Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"], "Complaints": [8, 6, 9, 5, 7, 4]})
+        st.line_chart(df.set_index("Month"))
+
+        st.subheader("Specification Review Status")
+        df2 = pd.DataFrame({"Status": ["Approved", "Pending", "Review Required", "Expired"], "Count": [984, 214, 61, 25]})
+        st.bar_chart(df2.set_index("Status"))
+
+    with c2:
+        st.subheader("CAPA / Quality Events")
+        df3 = pd.DataFrame({"Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"], "Events": [3, 4, 2, 6, 5, 3]})
+        st.line_chart(df3.set_index("Month"))
+
+        st.subheader("Supplier Document Compliance")
+        df4 = pd.DataFrame({"Category": ["Current", "Due Soon", "Expired"], "Count": [84, 9, 3]})
+        st.bar_chart(df4.set_index("Category"))
+
+    st.markdown('<div class="placeholder-box">', unsafe_allow_html=True)
+    st.subheader("Future KPI examples")
+    st.write("• Complaint rate by product / supplier")
+    st.write("• CAPA closure time")
+    st.write("• Supplier response time")
+    st.write("• Specification review backlog")
+    st.write("• Audit non-conformance trends")
+    st.write("• Environmental monitoring failures and retests")
+    st.write("• Customer questionnaire workload")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+def email_actions_page():
+    if st.button("← Back to dashboard"):
+        st.session_state["mode"] = "home"
+        st.rerun()
+
+    st.title("Email Actions")
+    st.write("This module represents the future Outlook-linked inbox scan. It will identify emails that need QA action and classify them automatically.")
+
+    st.markdown('<div class="placeholder-box">', unsafe_allow_html=True)
+    st.subheader("How it will work")
+    st.write("• Scan emails received by the associated user or shared QA mailbox")
+    st.write("• Classify emails as complaint, supplier certificate, specification update, customer form request, audit evidence, or general QA communication")
+    st.write("• Extract suggested customer, supplier, product code and attachments")
+    st.write("• Create an action card for the user to acknowledge")
+    st.write("• Once acknowledged, move the item into the relevant QMS module or workload queue")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.subheader("Example detected email actions")
+
+    examples = [
+        ("Complaint notification", "Customer reports foreign body with attached images.", "Suggested: Create Complaint"),
+        ("Supplier certificate received", "BRC certificate attached from SUP014.", "Suggested: File under Supplier Communications"),
+        ("Updated specification", "Supplier sent revised specification for SKU ABC123.", "Suggested: Add Updated Specification"),
+        ("Customer questionnaire", "Customer asks for nutrition and allergen form completion.", "Suggested: Create Customer Communication"),
+    ]
+
+    for title, desc, action in examples:
+        st.markdown('<div class="email-action">', unsafe_allow_html=True)
+        st.markdown(f"**{title}**")
+        st.write(desc)
+        st.info(action)
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 def specifications_module():
@@ -723,51 +803,71 @@ if st.session_state["mode"] == "home":
 elif st.session_state["mode"] == "specifications":
     specifications_module()
 
+elif st.session_state["mode"] == "kpis":
+    kpi_page()
+
+elif st.session_state["mode"] == "email_actions":
+    email_actions_page()
+
 elif st.session_state["mode"] == "complaints":
     module_placeholder(
         "Complaints",
         "Customer complaint management module.",
-        ["Complaint ID", "Complaint Category", "Date Notification Received", "Customer Code", "Product Code(s)", "Supplier per SKU", "Status", "Evidence / Email Folder"]
+        ["Complaint ID", "Complaint Category", "Date Notification Received", "Customer Code", "Product Code(s)", "Supplier per SKU", "Status", "Evidence / Email Folder"],
+        ["Log customer complaints and link them to products, suppliers and evidence.", "Track open/closed status and complaint category.", "Store emails, photos, videos and investigation documents.", "Create complaint timelines and recurring issue trends."],
+        ["Future Outlook email detection for complaint notifications.", "Automatic attachment filing.", "AI-assisted complaint categorisation.", "Trend analysis by product, supplier and customer."]
     )
 
 elif st.session_state["mode"] == "capa":
     module_placeholder(
         "CAPA / Quality Events",
         "Internal incidents, recalls, date extensions, concessions, holds and other quality events.",
-        ["CAPA / Event ID", "Event Type", "Date Notification Received", "Customer Code if Applicable", "Product Code(s)", "Supplier per SKU", "Status", "Evidence / Communication Folder"]
+        ["CAPA / Event ID", "Event Type", "Date Notification Received", "Customer Code if Applicable", "Product Code(s)", "Supplier per SKU", "Status", "Evidence / Communication Folder"],
+        ["Manage internal quality events separately from customer complaints.", "Record recalls, date extensions, stock holds, concessions and internal incidents.", "Link events to affected SKUs, suppliers and supporting evidence.", "Track closure and current workload."],
+        ["AI-assisted event classification.", "Automatic reminder for open actions.", "Link related specifications and supplier documents.", "Management KPI reporting."]
     )
 
 elif st.session_state["mode"] == "supplier_comms":
     module_placeholder(
         "Supplier Communications",
         "Supplier communication history, requests, certificates, specifications and contacts.",
-        ["Supplier Code", "Supplier Name", "Contact Person", "Communication Type", "Linked Product/SKU", "Status", "Email / Attachment Records"]
+        ["Supplier Code", "Supplier Name", "Contact Person", "Communication Type", "Linked Product/SKU", "Status", "Email / Attachment Records"],
+        ["Store supplier communication by supplier and product.", "Track requests for specifications, certificates, questionnaires and technical clarifications.", "Keep key supplier contacts and recurring documents visible.", "Reuse previous communication history."],
+        ["Future Outlook capture from supplier emails.", "Automatic detection of certificates and specifications.", "Supplier response tracking.", "Document expiry reminders."]
     )
 
 elif st.session_state["mode"] == "customer_comms":
     module_placeholder(
         "Customer Communications",
         "Customer requests, certificates, forms, questionnaires and recurring technical responses.",
-        ["Customer Code", "Customer Name", "Request Type", "Linked Product/SKU", "Form / Certificate Requested", "Status", "Previous Similar Response"]
+        ["Customer Code", "Customer Name", "Request Type", "Linked Product/SKU", "Form / Certificate Requested", "Status", "Previous Similar Response"],
+        ["Manage customer requests for certificates, specs, technical forms and questionnaires.", "Keep previous responses searchable for recurring customer forms.", "Link customer requests to products and suppliers.", "Track open requests and closure status."],
+        ["Future Outlook capture from customer emails.", "AI-assisted form completion suggestions.", "Reusable answer library.", "Customer workload reporting."]
     )
 
 elif st.session_state["mode"] == "environment":
     module_placeholder(
         "Environmental Monitoring",
         "Environmental monitoring schedule, results, retests, failures and trending.",
-        ["Sample ID", "Site / Area", "Sample Type", "Date Taken", "Result", "Limit", "Status", "Corrective Action"]
+        ["Sample ID", "Site / Area", "Sample Type", "Date Taken", "Result", "Limit", "Status", "Corrective Action"],
+        ["Schedule and record environmental swabs and test results.", "Track failures, retests and corrective actions.", "Trend results by site area and organism.", "Link failures to quality events where required."],
+        ["Automatic trend alerts.", "Retest reminders.", "AI-assisted failure summaries.", "Dashboard reporting."]
     )
 
 elif st.session_state["mode"] == "audits":
     module_placeholder(
         "Internal Audits",
         "Internal audits, checklists, findings, non-conformances and closure evidence.",
-        ["Audit ID", "Audit Area", "Audit Date", "Auditor", "Finding", "Severity", "Owner", "Due Date", "Status"]
+        ["Audit ID", "Audit Area", "Audit Date", "Auditor", "Finding", "Severity", "Owner", "Due Date", "Status"],
+        ["Plan internal audits and manage checklists.", "Record findings, non-conformances and closure evidence.", "Track owners and due dates.", "Link audit findings to quality events."],
+        ["Audit schedule reminders.", "Finding trend analysis.", "AI-assisted audit summaries.", "Automatic overdue action reporting."]
     )
 
 elif st.session_state["mode"] == "npd":
     module_placeholder(
         "NPD",
         "New product development workflow from trial to launch approval.",
-        ["Project ID", "Product Name", "Customer", "Stage", "Trial Date", "Specification Status", "Artwork Status", "Launch Status"]
+        ["Project ID", "Product Name", "Customer", "Stage", "Trial Date", "Specification Status", "Artwork Status", "Launch Status"],
+        ["Track new product development from concept to launch.", "Manage trial information, specifications, artwork, allergens and nutrition.", "Track approval status and launch readiness.", "Link NPD products into the live specification system."],
+        ["Launch checklist automation.", "AI-assisted allergen/nutrition checks.", "Artwork/specification comparison.", "Stage-gate workflow."]
     )
