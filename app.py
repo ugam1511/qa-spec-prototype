@@ -48,27 +48,35 @@ body { background-color:#F4F7FA; }
 .kpi-value { color:#111827; font-size:32px; font-weight:900; margin-top:6px; }
 .kpi-note { color:#6B7280; font-size:12px; margin-top:4px; }
 
-.module-card {
-    border:1px solid #E5E7EB;
-    border-radius:18px;
-    padding:20px;
-    margin-bottom:14px;
+.module-link {
+    display:block;
+    text-decoration:none !important;
     background:white;
+    border:1px solid #E5E7EB;
+    border-radius:20px;
+    padding:22px 18px;
+    margin-bottom:16px;
+    min-height:150px;
     box-shadow:0 2px 10px rgba(0,0,0,0.06);
+    transition: all 0.18s ease-in-out;
 }
-.module-card:hover {
+.module-link:hover {
+    transform: translateY(-4px);
     border-color:#2563EB;
-    box-shadow:0 6px 18px rgba(37,99,235,0.15);
+    box-shadow:0 10px 24px rgba(37,99,235,0.18);
 }
 .module-title {
-    font-size:20px;
-    font-weight:850;
+    text-align:center;
+    font-size:22px;
+    font-weight:900;
     color:#111827;
+    margin-bottom:12px;
 }
 .module-desc {
+    text-align:center;
     color:#6B7280;
     font-size:14px;
-    margin-top:4px;
+    line-height:1.45;
 }
 
 .panel-card {
@@ -450,18 +458,15 @@ def kpi_card(label, value, note):
 
 
 def clickable_module(name, desc, mode, icon):
-    st.markdown('<div class="module-card">', unsafe_allow_html=True)
-
-    if st.button(f"{icon}  {name}", key=f"click_{mode}", use_container_width=True):
-        st.session_state["mode"] = mode
-        st.rerun()
-
     st.markdown(
-        f"<div class='module-desc'>{desc}</div>",
+        f"""
+        <a class="module-link" href="?module={mode}">
+            <div class="module-title">{icon}<br>{name}</div>
+            <div class="module-desc">{desc}</div>
+        </a>
+        """,
         unsafe_allow_html=True
     )
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
 
 def module_placeholder(title, description, fields, workflows, automation):
@@ -565,20 +570,24 @@ def dashboard_page():
 
     with right:
         st.markdown('<div class="section-title">Email Actions</div>', unsafe_allow_html=True)
-        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
-        st.markdown('<div class="email-action"><b>Complaint notification detected</b><br>Customer email mentions foreign body and attached images.</div>', unsafe_allow_html=True)
-        st.markdown('<div class="email-action"><b>Supplier certificate received</b><br>BRC certificate attached. Suggested action: file under supplier approval.</div>', unsafe_allow_html=True)
-        st.markdown('<div class="email-action"><b>Customer questionnaire request</b><br>Nutrition/allergen form attached. Suggested action: customer communication.</div>', unsafe_allow_html=True)
-        st.markdown('<div class="email-action"><b>Updated specification received</b><br>Supplier has sent a revised PDF specification.</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("""
+<div class="panel-card">
+    <div class="email-action"><b>Complaint notification detected</b><br>Customer email mentions foreign body and attached images.</div>
+    <div class="email-action"><b>Supplier certificate received</b><br>BRC certificate attached. Suggested action: file under supplier approval.</div>
+    <div class="email-action"><b>Customer questionnaire request</b><br>Nutrition/allergen form attached. Suggested action: customer communication.</div>
+    <div class="email-action"><b>Updated specification received</b><br>Supplier has sent a revised PDF specification.</div>
+</div>
+""", unsafe_allow_html=True)
 
         st.markdown('<div class="section-title">Recent Activity</div>', unsafe_allow_html=True)
-        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
-        st.markdown('<div class="activity-item">09:15 — Ground Cumin specification reviewed <span class="status-pill-green">Approved</span></div>', unsafe_allow_html=True)
-        st.markdown('<div class="activity-item">09:02 — Pineapple Paste saved to database <span class="status-pill-yellow">Review</span></div>', unsafe_allow_html=True)
-        st.markdown('<div class="activity-item">Yesterday — Bresaola specification extracted <span class="status-pill-green">Complete</span></div>', unsafe_allow_html=True)
-        st.markdown('<div class="activity-item">Yesterday — Complaint workflow added <span class="status-pill-blue">Planned</span></div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("""
+<div class="panel-card">
+    <div class="activity-item">09:15 — Ground Cumin specification reviewed <span class="status-pill-green">Approved</span></div>
+    <div class="activity-item">09:02 — Pineapple Paste saved to database <span class="status-pill-yellow">Review</span></div>
+    <div class="activity-item">Yesterday — Bresaola specification extracted <span class="status-pill-green">Complete</span></div>
+    <div class="activity-item">Yesterday — Complaint workflow added <span class="status-pill-blue">Planned</span></div>
+</div>
+""", unsafe_allow_html=True)
 
         st.markdown('<div class="section-title">System Status</div>', unsafe_allow_html=True)
         st.success("Google Sheets database connected")
@@ -801,6 +810,18 @@ def specifications_module():
 
 if "mode" not in st.session_state:
     st.session_state["mode"] = "home"
+
+valid_modes = {
+    "specifications", "complaints", "capa", "supplier_comms",
+    "customer_comms", "environment", "audits", "npd",
+    "kpis", "email_actions"
+}
+
+selected_module = st.query_params.get("module")
+
+if selected_module in valid_modes and st.session_state.get("_last_query_module") != selected_module:
+    st.session_state["mode"] = selected_module
+    st.session_state["_last_query_module"] = selected_module
 
 if st.session_state["mode"] == "home":
     dashboard_page()
