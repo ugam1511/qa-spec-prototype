@@ -519,11 +519,11 @@ def dashboard_page():
     with c3: kpi_card("Email Actions", "23", "Detected from inbox")
     with c4: kpi_card("Approved Suppliers", "96", "Active supplier base")
 
-        st.markdown('<div class="section-title">Current Workload</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Current Workload</div>', unsafe_allow_html=True)
     w1, w2, w3 = st.columns(3)
 
     with w1:
-        st.markdown("""
+         st.markdown("""
         <div class="panel-card">
             <h4>Open Technical Reviews</h4>
             <div class="workload-item"><b>14</b> specification fields requiring QA review</div>
