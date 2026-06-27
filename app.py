@@ -467,19 +467,30 @@ def kpi_card(label, value, note):
 
 
 def clickable_module(name, desc, mode, icon):
-    st.markdown(
-        f"""
-        <div class="module-card-clean">
-            <div class="module-title-clean">{icon}<br>{name}</div>
-            <div class="module-desc-clean">{desc}</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    with st.container(border=True):
+        if st.button(
+            f"{icon}  {name}",
+            key=f"module_{mode}",
+            use_container_width=True
+        ):
+            st.session_state["mode"] = mode
+            st.rerun()
 
-    if st.button(" ", key=f"module_{mode}", use_container_width=True):
-        st.session_state["mode"] = mode
-        st.rerun()
+        st.markdown(
+            f"""
+            <div style="
+                text-align:center;
+                color:#6B7280;
+                font-size:14px;
+                line-height:1.45;
+                min-height:70px;
+                padding:6px 10px 10px 10px;
+            ">
+                {desc}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 
 def module_placeholder(title, description, fields, workflows, automation):
