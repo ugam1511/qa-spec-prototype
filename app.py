@@ -589,10 +589,11 @@ def dashboard_page():
             ("Email Actions", "Future Outlook-linked inbox scan that classifies emails into actionable QMS tasks.", "email_actions", "📧"),
         ]
 
-        mcols = st.columns(2)
-        for idx, (name, desc, mode, icon) in enumerate(modules):
-            with mcols[idx % 2]:
-                clickable_module(name, desc, mode, icon)
+        mcols = st.columns(2, gap="small")
+
+for idx, (name, desc, mode, icon) in enumerate(modules):
+    with mcols[idx % 2]:
+        clickable_module(name, desc, mode, icon)
 
     with right:
         st.markdown('<div class="section-title">Email Actions</div>', unsafe_allow_html=True)
