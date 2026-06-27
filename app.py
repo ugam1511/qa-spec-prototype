@@ -56,7 +56,8 @@ body { background-color:#F4F7FA; }
     border-radius:20px;
     padding:22px 18px;
     margin-bottom:16px;
-    min-height:150px;
+    height:190px;
+    box-sizing:border-box;
     box-shadow:0 2px 10px rgba(0,0,0,0.06);
     transition: all 0.18s ease-in-out;
 }
@@ -518,32 +519,38 @@ def dashboard_page():
     with c3: kpi_card("Email Actions", "23", "Detected from inbox")
     with c4: kpi_card("Approved Suppliers", "96", "Active supplier base")
 
-    st.markdown('<div class="section-title">Current Workload</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">Current Workload</div>', unsafe_allow_html=True)
     w1, w2, w3 = st.columns(3)
 
     with w1:
-        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
-        st.markdown("#### Open Technical Reviews")
-        st.markdown('<div class="workload-item"><b>14</b> specification fields requiring QA review</div>', unsafe_allow_html=True)
-        st.markdown('<div class="workload-item"><b>7</b> supplier documents due for renewal</div>', unsafe_allow_html=True)
-        st.markdown('<div class="workload-item"><b>3</b> formulations requiring confirmation</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div class="panel-card">
+            <h4>Open Technical Reviews</h4>
+            <div class="workload-item"><b>14</b> specification fields requiring QA review</div>
+            <div class="workload-item"><b>7</b> supplier documents due for renewal</div>
+            <div class="workload-item"><b>3</b> formulations requiring confirmation</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     with w2:
-        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
-        st.markdown("#### Open Quality Records")
-        st.markdown('<div class="workload-item"><b>6</b> open complaints</div>', unsafe_allow_html=True)
-        st.markdown('<div class="workload-item"><b>5</b> open CAPA / quality events</div>', unsafe_allow_html=True)
-        st.markdown('<div class="workload-item"><b>4</b> internal audit actions due</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div class="panel-card">
+            <h4>Open Quality Records</h4>
+            <div class="workload-item"><b>6</b> open complaints</div>
+            <div class="workload-item"><b>5</b> open CAPA / quality events</div>
+            <div class="workload-item"><b>4</b> internal audit actions due</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     with w3:
-        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
-        st.markdown("#### Supplier / Customer Follow-up")
-        st.markdown('<div class="workload-item"><b>9</b> supplier responses awaiting review</div>', unsafe_allow_html=True)
-        st.markdown('<div class="workload-item"><b>4</b> customer forms awaiting completion</div>', unsafe_allow_html=True)
-        st.markdown('<div class="workload-item"><b>2</b> certificates requested by customers</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div class="panel-card">
+            <h4>Supplier / Customer Follow-up</h4>
+            <div class="workload-item"><b>9</b> supplier responses awaiting review</div>
+            <div class="workload-item"><b>4</b> customer forms awaiting completion</div>
+            <div class="workload-item"><b>2</b> certificates requested by customers</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     left, right = st.columns([0.62, 0.38])
 
