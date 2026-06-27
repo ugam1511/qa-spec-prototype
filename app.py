@@ -79,7 +79,13 @@ body { background-color:#F4F7FA; }
 }
 
 /* Hide the visible Streamlit button but keep it clickable */
-div[data-testid="stButton"] > button[kind="secondary"] {
+div[data-testid="stButton"] > button {
+    font-size: 18px;
+    font-weight: 900;
+    border-radius: 14px;
+    min-height: 54px;
+    
+}div[data-testid="stButton"] > button[kind="secondary"] {
     background: transparent;
     color: transparent;
     border: 0;
@@ -467,30 +473,26 @@ def kpi_card(label, value, note):
 
 
 def clickable_module(name, desc, mode, icon):
-    with st.container(border=True):
-        if st.button(
-            f"{icon}  {name}",
-            key=f"module_{mode}",
-            use_container_width=True
-        ):
-            st.session_state["mode"] = mode
-            st.rerun()
+    st.markdown('<div class="module-card-clean">', unsafe_allow_html=True)
 
-        st.markdown(
-            f"""
-            <div style="
-                text-align:center;
-                color:#6B7280;
-                font-size:14px;
-                line-height:1.45;
-                min-height:70px;
-                padding:6px 10px 10px 10px;
-            ">
-                {desc}
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+    if st.button(
+        f"{icon}  {name}",
+        key=f"module_{mode}",
+        use_container_width=True
+    ):
+        st.session_state["mode"] = mode
+        st.rerun()
+
+    st.markdown(
+        f"""
+        <div class="module-desc-clean">
+            {desc}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 def module_placeholder(title, description, fields, workflows, automation):
