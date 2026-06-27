@@ -459,15 +459,42 @@ def kpi_card(label, value, note):
 
 
 def clickable_module(name, desc, mode, icon):
-    st.markdown(
-        f"""
-        <a class="module-link" href="?module={mode}">
-            <div class="module-title">{icon}<br>{name}</div>
-            <div class="module-desc">{desc}</div>
-        </a>
-        """,
-        unsafe_allow_html=True
-    )
+
+    with st.container(border=True):
+
+        st.markdown(
+            f"""
+            <div style="text-align:center;padding-top:10px;">
+                <div style="
+                    font-size:22px;
+                    font-weight:800;
+                    margin-bottom:12px;
+                ">
+                    {icon}<br>{name}
+                </div>
+
+                <div style="
+                    color:#666;
+                    font-size:14px;
+                    min-height:60px;
+                    padding-left:10px;
+                    padding-right:10px;
+                ">
+                    {desc}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        if st.button(
+            "Open",
+            key=f"module_{mode}",
+            use_container_width=True,
+            type="primary"
+        ):
+            st.session_state["mode"] = mode
+            st.rerun()
 
 
 def module_placeholder(title, description, fields, workflows, automation):
@@ -824,11 +851,7 @@ valid_modes = {
     "kpis", "email_actions"
 }
 
-selected_module = st.query_params.get("module")
 
-if selected_module in valid_modes and st.session_state.get("_last_query_module") != selected_module:
-    st.session_state["mode"] = selected_module
-    st.session_state["_last_query_module"] = selected_module
 
 if st.session_state["mode"] == "home":
     dashboard_page()
