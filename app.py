@@ -52,46 +52,24 @@ body { background-color:#F4F7FA; }
     background:white;
     border:1px solid #E5E7EB;
     border-radius:20px;
-    padding:22px 18px;
-    height:210px;
-    box-sizing:border-box;
+    padding:18px;
+    min-height:210px;
     box-shadow:0 2px 10px rgba(0,0,0,0.06);
-    margin-bottom:4px;
-    transition: all 0.18s ease-in-out;
-}
-.module-card-clean:hover {
-    transform: translateY(-4px);
-    border-color:#2563EB;
-    box-shadow:0 10px 24px rgba(37,99,235,0.18);
+    margin-bottom:16px;
 }
 .module-title-clean {
     text-align:center;
     font-size:22px;
     font-weight:900;
     color:#111827;
-    margin-bottom:14px;
+    margin-bottom:12px;
 }
 .module-desc-clean {
     text-align:center;
     color:#6B7280;
     font-size:14px;
     line-height:1.45;
-}
-
-/* Hide the visible Streamlit button but keep it clickable */
-div[data-testid="stButton"] > button {
-    font-size: 18px;
-    font-weight: 900;
-    border-radius: 14px;
-    min-height: 54px;
-    
-}div[data-testid="stButton"] > button[kind="secondary"] {
-    background: transparent;
-    color: transparent;
-    border: 0;
-    height: 0px;
-    padding: 0;
-    margin: 0;
+    min-height:70px;
 }
 
 .panel-card {
@@ -473,26 +451,20 @@ def kpi_card(label, value, note):
 
 
 def clickable_module(name, desc, mode, icon):
-    st.markdown('<div class="module-card-clean">', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown(
+            f"""
+            <div class="module-card-clean">
+                <div class="module-title-clean">{icon}<br>{name}</div>
+                <div class="module-desc-clean">{desc}</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-    if st.button(
-        f"{icon}  {name}",
-        key=f"module_{mode}",
-        use_container_width=True
-    ):
-        st.session_state["mode"] = mode
-        st.rerun()
-
-    st.markdown(
-        f"""
-        <div class="module-desc-clean">
-            {desc}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    st.markdown('</div>', unsafe_allow_html=True)
+        if st.button("Open", key=f"module_{mode}", use_container_width=True, type="primary"):
+            st.session_state["mode"] = mode
+            st.rerun()
 
 
 def module_placeholder(title, description, fields, workflows, automation):
@@ -602,8 +574,7 @@ def dashboard_page():
             ("Email Actions", "Future Outlook-linked inbox scan that classifies emails into actionable QMS tasks.", "email_actions", "📧"),
         ]
 
-        mcols = st.columns(2, gap="small")
-
+        mcols = st.columns(2)
         for idx, (name, desc, mode, icon) in enumerate(modules):
             with mcols[idx % 2]:
                 clickable_module(name, desc, mode, icon)
